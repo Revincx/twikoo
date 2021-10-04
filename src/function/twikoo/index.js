@@ -1,5 +1,5 @@
 /*!
- * Twikoo cloudbase function v1.4.6
+ * Twikoo cloudbase function v1.4.9
  * (c) 2020-present iMaeGoo
  * Released under the MIT License.
  */
@@ -31,7 +31,7 @@ const window = new JSDOM('').window
 const DOMPurify = createDOMPurify(window)
 
 // 常量 / constants
-const VERSION = '1.4.6'
+const VERSION = '1.4.9'
 const RES_CODE = {
   SUCCESS: 0,
   FAIL: 1000,
@@ -505,7 +505,7 @@ async function commentImportForAdmin (event) {
           break
         }
         case 'twikoo': {
-          const twikooDb = await readFile(event.file, 'json', log)
+          const twikooDb = await readFile(event.fileId, 'json', log)
           await commentImportTwikoo(twikooDb, log)
           break
         }
@@ -740,13 +740,19 @@ async function commentImportArtalk (artalkDb, log) {
 
 // Twikoo 导入
 async function commentImportTwikoo (twikooDb, log) {
-  const comments = []
-  if (!twikooDb || !twikooDb.length) {
-    log('Twikoo 评论文件格式有误')
+  let arr
+  if (twikooDb instanceof Array) {
+    arr = twikooDb
+  } else if (twikooDb && twikooDb.results) {
+    arr = twikooDb.results
+  }
+  if (!arr) {
+    log('Valine 评论文件格式有误')
     return
   }
-  log(`共 ${twikooDb.length} 条评论`)
-  for (const comment of twikooDb) {
+  const comments = []
+  log(`共 ${arr.length} 条评论`)
+  for (const comment of arr) {
     try {
       const parsed = comment
       if (comment._id.$oid) {
@@ -760,8 +766,8 @@ async function commentImportTwikoo (twikooDb, log) {
     }
   }
   log(`解析成功 ${comments.length} 条评论`)
-  const insertedCount = await bulkSaveComments(comments)
-  log(`导入成功 ${insertedCount} 条评论`)
+  const ids = await bulkSaveComments(comments)
+  log(`导入成功 ${ids.length} 条评论`)
   return comments
 }
 
@@ -1418,19 +1424,25 @@ async function getRecentComments (event) {
 
 async function emailTest (event) {
   const res = {}
-  try {
-    if (!transporter) {
-      await initMailer({ throwErr: true })
+  const isAdminUser = await isAdmin()
+  if (isAdminUser) {
+    try {
+      if (!transporter) {
+        await initMailer({ throwErr: true })
+      }
+      const sendResult = await transporter.sendMail({
+        from: config.SENDER_EMAIL,
+        to: event.mail || config.BLOGGER_EMAIL || config.SENDER_EMAIL,
+        subject: 'Twikoo 邮件通知测试邮件',
+        html: '如果您收到这封邮件，说明 Twikoo 邮件功能配置正确'
+      })
+      res.result = sendResult
+    } catch (e) {
+      res.message = e.message
     }
-    const sendResult = await transporter.sendMail({
-      from: config.SENDER_EMAIL,
-      to: event.mail || config.BLOGGER_EMAIL || config.SENDER_EMAIL,
-      subject: 'Twikoo 邮件通知测试邮件',
-      html: '如果您收到这封邮件，说明 Twikoo 邮件功能配置正确'
-    })
-    res.result = sendResult
-  } catch (e) {
-    res.message = e.message
+  } else {
+    res.code = RES_CODE.NEED_LOGIN
+    res.message = '请先登录'
   }
   return res
 }

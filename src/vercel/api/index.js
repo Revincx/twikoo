@@ -1,5 +1,5 @@
 /*!
- * Twikoo vercel function v1.4.6
+ * Twikoo vercel function v1.4.9
  * (c) 2020-present iMaeGoo
  * Released under the MIT License.
  */
@@ -27,7 +27,7 @@ const window = new JSDOM('').window
 const DOMPurify = createDOMPurify(window)
 
 // 常量 / constants
-const VERSION = '1.4.6'
+const VERSION = '1.4.9'
 const RES_CODE = {
   SUCCESS: 0,
   NO_PARAM: 100,
@@ -1431,19 +1431,25 @@ async function getRecentComments (event) {
 
 async function emailTest (event) {
   const res = {}
-  try {
-    if (!transporter) {
-      await initMailer({ throwErr: true })
+  const isAdminUser = await isAdmin()
+  if (isAdminUser) {
+    try {
+      if (!transporter) {
+        await initMailer({ throwErr: true })
+      }
+      const sendResult = await transporter.sendMail({
+        from: config.SENDER_EMAIL,
+        to: event.mail || config.BLOGGER_EMAIL || config.SENDER_EMAIL,
+        subject: 'Twikoo 邮件通知测试邮件',
+        html: '如果您收到这封邮件，说明 Twikoo 邮件功能配置正确'
+      })
+      res.result = sendResult
+    } catch (e) {
+      res.message = e.message
     }
-    const sendResult = await transporter.sendMail({
-      from: config.SENDER_EMAIL,
-      to: event.mail || config.BLOGGER_EMAIL || config.SENDER_EMAIL,
-      subject: 'Twikoo 邮件通知测试邮件',
-      html: '如果您收到这封邮件，说明 Twikoo 邮件功能配置正确'
-    })
-    res.result = sendResult
-  } catch (e) {
-    res.message = e.message
+  } else {
+    res.code = RES_CODE.NEED_LOGIN
+    res.message = '请先登录'
   }
   return res
 }
@@ -1472,7 +1478,7 @@ function addQQMailSuffix (mail) {
 async function getQQAvatar (qq) {
   try {
     const qqNum = qq.replace(/@qq.com/ig, '')
-    const result = await axios.get(`https://ptlogin2.qq.com/getface?imgtype=4&uin=${qqNum}`)
+    const result = await axios.get(`https://ssl.ptlogin2.qq.com/getface?imgtype=4&uin=${qqNum}`, { timeout: 5000 })
     if (result && result.data) {
       const start = result.data.indexOf('http')
       const end = result.data.indexOf('"', start)
