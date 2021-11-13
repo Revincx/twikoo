@@ -29,8 +29,8 @@ export default {
   ],
   ADMIN_SERVER_VERSION: [
     '云函数版本：',
-    '云函数版本：',
-    '云函数版本：',
+    '云函數版本：',
+    '云函數版本：',
     'Server version: '
   ],
   [S.AC]: [
@@ -59,8 +59,8 @@ export default {
   ],
   [S.AC + '_FILTER_VISIBLE']: [
     '只看可见',
-    '只看可见',
-    '只看可见',
+    '只看可見',
+    '只看可見',
     'Visible'
   ],
   [S.AC + '_FILTER_HIDDEN']: [
@@ -89,8 +89,8 @@ export default {
   ],
   [S.AC + '_SEARCH_PLACEHOLDER']: [
     '搜索昵称、邮箱、网址、IP、评论正文、文章地址',
-    '搜索昵称、邮箱、网址、IP、评论正文、文章地址',
-    '搜索昵称、邮箱、网址、IP、评论正文、文章地址',
+    '搜索暱稱、郵箱、網址、IP、評論正文、文章地址',
+    '搜索暱稱、郵箱、網址、IP、評論正文、文章地址',
     'Search by nick, mail, website, IP, comment, or article path'
   ],
   [S.AC + '_SHOW']: [
@@ -101,14 +101,14 @@ export default {
   ],
   [S.AC + '_TOP']: [
     '置顶',
-    '置顶',
-    '置顶',
+    '置頂',
+    '置頂',
     'Pin'
   ],
   [S.AC + '_UNTOP']: [
     '取消置顶',
-    '取消置顶',
-    '取消置顶',
+    '取消置頂',
+    '取消置頂',
     'Unpin'
   ],
   [S.AC + '_VIEW']: [
@@ -189,6 +189,12 @@ export default {
     'Akismet 反垃圾評論，用於垃圾評論檢測，設為 "MANUAL_REVIEW" 開啟人工審核，留空不使用反垃圾。註冊：https://akismet.com',
     'Akismet spam protection. Set to "MANUAL_REVIEW" to enable manual review. Leave it blank to not use anti-spam. Register Akismet: https://akismet.com'
   ],
+  [S.ACI + '_BLOGGER_NICK']: [
+    '博主的昵称。',
+    '博主的昵称。',
+    '博主的昵称。',
+    'Admin nick name.'
+  ],
   [S.ACI + '_BLOGGER_EMAIL']: [
     '博主的邮箱地址，用于邮件通知、博主标识。',
     '博主的郵箱地址，用於郵件通知、博主標識。',
@@ -215,8 +221,8 @@ export default {
   ],
   [S.ACI + '_CORS_ALLOW_ORIGIN']: [
     'Vercel 安全域名，防止环境被盗用，请注意设置后将无法在本地（localhost）加载评论，默认为空',
-    'Vercel 安全域名，防止环境被盗用，请注意设置后将无法在本地（localhost）加载评论，默认为空',
-    'Vercel 安全域名，防止环境被盗用，请注意设置后将无法在本地（localhost）加载评论，默认为空',
+    'Vercel 安全域名，防止環境被盜用，請注意設置後將無法在本地（localhost）加載評論，默認為空',
+    'Vercel 安全域名，防止環境被盜用，請注意設置後將無法在本地（localhost）加載評論，默認為空',
     'Vercel 安全域名，防止环境被盗用，请注意设置后将无法在本地（localhost）加载评论，默认为空'
   ],
   [S.ACI + '_DEFAULT_GRAVATAR']: [
@@ -233,7 +239,7 @@ export default {
   ],
   [S.ACI + '_FORBIDDEN_WORDS']: [
     '违禁词配置，包含违禁词的内容会直接标记为垃圾评论。英文逗号分隔。',
-    '違禁詞配置，包含違禁詞嘅內容會直接標記為垃圾評論。英文逗號分隔。',
+    '違禁詞配置，包含違禁詞的內容會直接標記為垃圾評論。英文逗號分隔。',
     '違禁詞配置，包含違禁詞嘅內容會直接標記為垃圾評論。英文逗號分隔。',
     'Configure prohibited words. Comments containing prohibited words will be auto spammed. Separate by comma.'
   ],
@@ -346,9 +352,9 @@ export default {
     'Required fields for comments. Set to "nick,mail,link" means all fields are required. Set to "none" means all fields are optional. Default: nick,mail.'
   ],
   [S.ACI + '_SC_MAIL_NOTIFY']: [
-    '是否同时通过微信和邮件 2 种方式通知博主，默认只通过微信通知博主，默认：false',
-    '是否同時通過微信和郵件 2 種方式通知博主，預設只通過微信通知博主，預設：false',
-    '是否同時通過微信和郵件 2 種方式通知博主，預設只通過微信通知博主，預設：false',
+    '是否同时通过 IM 和邮件 2 种方式通知博主，默认只通过 IM 通知博主，默认：false',
+    '是否同時通過 IM 和郵件 2 種方式通知博主，預設只通過 IM 通知博主，預設：false',
+    '是否同時通過 IM 和郵件 2 種方式通知博主，預設只通過 IM 通知博主，預設：false',
     'Whether to notify admin via WeChat and email at the same time, the default is to notify admin only via WeChat. Default: false.'
   ],
   [S.ACI + '_SC_SENDKEY']: [
@@ -701,14 +707,14 @@ export default {
   ],
   COMMENT_REVIEWING_TAG: [
     '审核中',
-    '审核中',
-    '审核中',
+    '審核中',
+    '審核中',
     'Reviewing'
   ],
   COMMENT_TOP_TAG: [
     '置顶',
-    '置顶',
-    '置顶',
+    '置頂',
+    '置頂',
     'Pinned'
   ],
   META_INPUT_LINK: [
