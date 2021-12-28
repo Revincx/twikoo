@@ -69,7 +69,8 @@ export default {
           name: t('ADMIN_CONFIG_CATEGORY_PLUGIN'),
           items: [
             { key: 'SHOW_IMAGE', desc: t('ADMIN_CONFIG_ITEM_SHOW_IMAGE'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}false`, value: '' },
-            { key: 'IMAGE_CDN', desc: t('ADMIN_CONFIG_ITEM_IMAGE_CDN'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}false`, value: '' },
+            { key: 'IMAGE_CDN', desc: t('ADMIN_CONFIG_ITEM_IMAGE_CDN'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}qcloud`, value: '' },
+            { key: 'IMAGE_CDN_TOKEN', desc: t('ADMIN_CONFIG_ITEM_IMAGE_CDN_TOKEN'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}example`, value: '' },
             { key: 'SHOW_EMOTION', desc: t('ADMIN_CONFIG_ITEM_SHOW_EMOTION'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}false`, value: '' },
             { key: 'EMOTION_CDN', desc: t('ADMIN_CONFIG_ITEM_EMOTION_CDN'), ph: '', value: '' },
             { key: 'HIGHLIGHT', desc: t('ADMIN_CONFIG_ITEM_HIGHLIGHT'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}false`, value: '' },
@@ -95,6 +96,7 @@ export default {
             { key: 'QM_SENDKEY', desc: t('ADMIN_CONFIG_ITEM_QM_SENDKEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}k2ni28jkmn72tqdvqryt9827u0o9nbpok`, value: '' },
             { key: 'PUSH_PLUS_TOKEN', desc: t('ADMIN_CONFIG_ITEM_PUSH_PLUS_TOKEN'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}f8ae2b8a107a408b803896a0ec012345`, value: '' },
             { key: 'WECOM_API_URL', desc: t('ADMIN_CONFIG_ITEM_WECOM_API_URL'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}https://xxx.ap-shanghai.app.tcloudbase.com/自定义api云函数?id=ww***&secert=Ne***&agentId=10***03&msg=`, value: '' },
+            { key: 'DINGTALK_WEBHOOK_URL', desc: t('ADMIN_CONFIG_ITEM_DINGTALK_WEBHOOK_URL'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}https://oapi.dingtalk.com/robot/send?access_token=***`, value: '' },
             { key: 'SC_MAIL_NOTIFY', desc: t('ADMIN_CONFIG_ITEM_SC_MAIL_NOTIFY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}true`, value: '' }
           ]
         },

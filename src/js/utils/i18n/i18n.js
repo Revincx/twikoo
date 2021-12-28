@@ -191,8 +191,8 @@ export default {
   ],
   [S.ACI + '_BLOGGER_NICK']: [
     '博主的昵称。',
-    '博主的昵称。',
-    '博主的昵称。',
+    '博主的昵稱。',
+    '博主的昵稱。',
     'Admin nick name.'
   ],
   [S.ACI + '_BLOGGER_EMAIL']: [
@@ -244,10 +244,10 @@ export default {
     'Configure prohibited words. Comments containing prohibited words will be auto spammed. Separate by comma.'
   ],
   [S.ACI + '_GRAVATAR_CDN']: [
-    '自定义头像 CDN 地址。如：cn.gravatar.com, sdn.geekzu.org, gravatar.loli.net，默认：cn.gravatar.com',
-    '自定義頭像 CDN 地址。如：cn.gravatar.com, sdn.geekzu.org, gravatar.loli.net，預設：cn.gravatar.com',
-    '自定義頭像 CDN 地址。如：cn.gravatar.com, sdn.geekzu.org, gravatar.loli.net，預設：cn.gravatar.com',
-    'Custom avator CDN. (Examples: cn.gravatar.com, sdn.geekzu.org, gravatar.loli.net) Default: cn.gravatar.com.'
+    '自定义头像 CDN 地址。如：cn.gravatar.com, cravatar.cn, sdn.geekzu.org, gravatar.loli.net，默认：cravatar.cn',
+    '自定義頭像 CDN 地址。如：cn.gravatar.com, cravatar.cn, sdn.geekzu.org, gravatar.loli.net，預設：cravatar.cn',
+    '自定義頭像 CDN 地址。如：cn.gravatar.com, cravatar.cn, sdn.geekzu.org, gravatar.loli.net，預設：cravatar.cn',
+    'Custom avator CDN. (Examples: gravatar.com) Default: cravatar.cn.'
   ],
   [S.ACI + '_HIDE_ADMIN_CRYPT']: [
     '隐藏管理面板入口。可设置一个“暗号”，只有在“昵称”一栏输入相同的“暗号”时，管理面板入口才会显示，留空则不隐藏管理入口',
@@ -268,10 +268,16 @@ export default {
     'Code highlighting theme. Select from: default、coy、dark、funky、okaidia、solarizedlight、tomorrow、twilight. Visit https://prismjs.com for preview. If your theme conflicts with code highlighting, please set it to none. Default: none.'
   ],
   [S.ACI + '_IMAGE_CDN']: [
-    '插入图片所使用的图床，目前支持：7bu、qcloud，默认为：qcloud',
-    '插入圖片所使用的圖床，目前支持：7bu、qcloud，預設為：qcloud',
-    '插入圖片所使用的圖床，目前支援：7bu、qcloud，預設為：qcloud',
-    'The image bed for image uploading. Select from: 7bu、qcloud. Default: qcloud.'
+    '插入图片所使用的图床，目前支持：7bu、qcloud',
+    '插入圖片所使用的圖床，目前支持：7bu、qcloud',
+    '插入圖片所使用的圖床，目前支援：7bu、qcloud',
+    'The image bed for image uploading. Select from: 7bu、qcloud'
+  ],
+  [S.ACI + '_IMAGE_CDN_TOKEN']: [
+    '7bu 的图床 token',
+    '7bu 的图床 token',
+    '7bu 的图床 token',
+    'The image bed token for 7bu.'
   ],
   [S.ACI + '_LIMIT_PER_MINUTE']: [
     '每个 IP 每 10 分钟最多发表多少条评论，默认：0（无限制）',
@@ -298,16 +304,16 @@ export default {
     'Custom admin Email notification subject. Leave it blank to use the default subject.'
   ],
   [S.ACI + '_MAIL_TEMPLATE']: [
-    '自定义通知邮件模板，留空则使用默认模板。可包含的字段：${SITE_URL}, ${SITE_NAME}, ${PARENT_NICK}, ${PARENT_COMMENT}, ${NICK}, ${COMMENT}, ${POST_URL}',
-    '自定義通知郵件模板，留空則使用預設模板。可包含的字段：${SITE_URL}, ${SITE_NAME}, ${PARENT_NICK}, ${PARENT_COMMENT}, ${NICK}, ${COMMENT}, ${POST_URL}',
-    '自定義通知郵件模板，留空則使用預設模板。可包含的欄位：${SITE_URL}, ${SITE_NAME}, ${PARENT_NICK}, ${PARENT_COMMENT}, ${NICK}, ${COMMENT}, ${POST_URL}',
-    'Custom Email notification template. Leave it blank to use the default template. Fields that can be included: ${SITE_URL}, ${SITE_NAME}, ${NICK}, ${COMMENT}, ${POST_URL}'
+    '自定义通知邮件模板，留空则使用默认模板。可包含的字段：${SITE_URL}, ${SITE_NAME}, ${PARENT_NICK}, ${PARENT_COMMENT}, ${NICK}, ${COMMENT}, ${POST_URL}, ${IMG}, ${PARENT_IMG}',
+    '自定義通知郵件模板，留空則使用預設模板。可包含的字段：${SITE_URL}, ${SITE_NAME}, ${PARENT_NICK}, ${PARENT_COMMENT}, ${NICK}, ${COMMENT}, ${POST_URL}, ${IMG}, ${PARENT_IMG}',
+    '自定義通知郵件模板，留空則使用預設模板。可包含的欄位：${SITE_URL}, ${SITE_NAME}, ${PARENT_NICK}, ${PARENT_COMMENT}, ${NICK}, ${COMMENT}, ${POST_URL}, ${IMG}, ${PARENT_IMG}',
+    'Custom Email notification template. Leave it blank to use the default template. Fields that can be included: ${SITE_URL}, ${SITE_NAME}, ${NICK}, ${COMMENT}, ${POST_URL}, ${IMG}, ${PARENT_IMG}'
   ],
   [S.ACI + '_MAIL_TEMPLATE_ADMIN']: [
-    '自定义博主通知邮件模板，留空则使用默认模板。可包含的字段：${SITE_URL}, ${SITE_NAME}, ${NICK}, ${COMMENT}, ${POST_URL}',
-    '自定義博主通知郵件模板，留空則使用預設模板。可包含的字段：${SITE_URL}, ${SITE_NAME}, ${NICK}, ${COMMENT}, ${POST_URL}',
-    '自定義博主通知郵件模板，留空則使用預設模板。可包含的欄位：${SITE_URL}, ${SITE_NAME}, ${NICK}, ${COMMENT}, ${POST_URL}',
-    'Custom admin Email notification template. Leave it blank to use the default template. Fields that can be included: ${SITE_URL}, ${SITE_NAME}, ${NICK}, ${COMMENT}, ${POST_URL}'
+    '自定义博主通知邮件模板，留空则使用默认模板。可包含的字段：${SITE_URL}, ${SITE_NAME}, ${NICK}, ${COMMENT}, ${POST_URL}, ${IP}, ${MAIL}, ${IMG}',
+    '自定義博主通知郵件模板，留空則使用預設模板。可包含的字段：${SITE_URL}, ${SITE_NAME}, ${NICK}, ${COMMENT}, ${POST_URL}, ${IP}, ${MAIL}, ${IMG}',
+    '自定義博主通知郵件模板，留空則使用預設模板。可包含的欄位：${SITE_URL}, ${SITE_NAME}, ${NICK}, ${COMMENT}, ${POST_URL}, ${IP}, ${MAIL}, ${IMG}',
+    'Custom admin Email notification template. Leave it blank to use the default template. Fields that can be included: ${SITE_URL}, ${SITE_NAME}, ${NICK}, ${COMMENT}, ${POST_URL}, ${IP}, ${MAIL}, ${IMG}'
   ],
   [S.ACI + '_MASTER_TAG']: [
     '博主标识自定义文字，默认为 “博主”。',
@@ -368,6 +374,12 @@ export default {
     '自行搭建的企業微信通知 API 接口 URL，免費不限量，參考教程：https://guole.fun/posts/626/',
     '自行搭建的企業微信通知 API 接口 URL，免費不限量，參考教程：https://guole.fun/posts/626/',
     'Self-built enterprise WeChat notification API interface URL, free unlimited, refer to the tutorial: https://guole.fun/posts/626/'
+  ],
+  [S.ACI + '_DINGTALK_WEBHOOK_URL']: [
+    '钉钉 WebHook API 接口 URL，参考教程：https://blog.ljcbaby.top/article/Twikoo-DingTalk/',
+    '钉钉 WebHooK API 接口 URL，參考教程：https://blog.ljcbaby.top/article/Twikoo-DingTalk/',
+    '钉钉 WebHooK API 接口 URL，參考教程：https://blog.ljcbaby.top/article/Twikoo-DingTalk/',
+    'DingTalk Webhook API interface URL, refer to the tutorial (Chiinese Only): https://blog.ljcbaby.top/article/Twikoo-DingTalk/ '
   ],
   [S.ACI + '_SENDER_EMAIL']: [
     '邮件通知邮箱地址。对于大多数邮箱服务商，SENDER_EMAIL 必须和 SMTP_USER 保持一致，否则无法发送邮件。',

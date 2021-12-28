@@ -1,5 +1,5 @@
 /*!
- * Twikoo vercel function v1.4.11
+ * Twikoo vercel function v1.4.15
  * (c) 2020-present iMaeGoo
  * Released under the MIT License.
  */
@@ -27,7 +27,7 @@ const window = new JSDOM('').window
 const DOMPurify = createDOMPurify(window)
 
 // 常量 / constants
-const VERSION = '1.4.11'
+const VERSION = '1.4.15'
 const RES_CODE = {
   SUCCESS: 0,
   NO_PARAM: 100,
@@ -852,7 +852,7 @@ async function commentSubmit (event) {
       axios.post(`https://${process.env.VERCEL_URL}`, {
         event: 'POST_SUBMIT',
         comment
-      }, { headers: { 'x-twikoo-recursion': 'true' } }),
+      }, { headers: { 'x-twikoo-recursion': config.ADMIN_PASS || 'true' } }),
       // 如果超过 5 秒还没收到异步返回，直接继续，减少用户等待的时间
       new Promise((resolve) => setTimeout(resolve, 5000))
     ])
@@ -891,6 +891,7 @@ async function sendNotice (comment) {
     noticeWeChat(comment),
     noticePushPlus(comment),
     noticeWeComPush(comment),
+    noticeDingTalkHook(comment),
     noticeQQ(comment)
   ]).catch(console.error)
   return { code: RES_CODE.SUCCESS }
@@ -940,7 +941,8 @@ async function noticeMaster (comment) {
     'SC_SENDKEY',
     'QM_SENDKEY',
     'PUSH_PLUS_TOKEN',
-    'WECOM_API_URL'
+    'WECOM_API_URL',
+    'DINGTALK_WEBHOOK_URL'
   ]
   // 判断是否存在即时消息推送配置
   const hasIMPushConfig = IM_PUSH_CONFIGS.some(item => !!config[item])
@@ -948,6 +950,9 @@ async function noticeMaster (comment) {
   if (hasIMPushConfig && config.SC_MAIL_NOTIFY !== 'true') return
   const SITE_NAME = config.SITE_NAME
   const NICK = comment.nick
+  const IMG = getAvatar(comment)
+  const IP = comment.ip
+  const MAIL = comment.mail
   const COMMENT = comment.comment
   const SITE_URL = config.SITE_URL
   const POST_URL = appendHashToUrl(comment.href || SITE_URL + comment.url, comment.id)
@@ -958,6 +963,9 @@ async function noticeMaster (comment) {
       .replace(/\${SITE_URL}/g, SITE_URL)
       .replace(/\${SITE_NAME}/g, SITE_NAME)
       .replace(/\${NICK}/g, NICK)
+      .replace(/\${IMG}/g, IMG)
+      .replace(/\${IP}/g, IP)
+      .replace(/\${MAIL}/g, MAIL)
       .replace(/\${COMMENT}/g, COMMENT)
       .replace(/\${POST_URL}/g, POST_URL)
   } else {
@@ -1046,6 +1054,18 @@ async function noticeWeComPush (comment) {
   console.log('WinxinPush 通知结果：', sendResult)
 }
 
+// 自定义钉钉WebHook通知
+async function noticeDingTalkHook (comment) {
+  if (!config.DINGTALK_WEBHOOK_URL) {
+    console.log('没有配置 DingTalk_WebHook，放弃钉钉WebHook推送')
+    return
+  }
+  if (config.BLOGGER_EMAIL === comment.mail) return
+  const DingTalkContent = config.SITE_NAME + '有新评论啦！🎉🎉' + '\n\n' + '@' + comment.nick + ' 说：' + $(comment.comment).text() + '\n' + 'E-mail: ' + comment.mail + '\n' + 'IP: ' + comment.ip + '\n' + '点此查看完整内容：' + appendHashToUrl(comment.href || config.SITE_URL + comment.url, comment.id)
+  const sendResult = await axios.post(config.DINGTALK_WEBHOOK_URL, { msgtype: 'text', text: { content: DingTalkContent } })
+  console.log('钉钉WebHook 通知结果：', sendResult)
+}
+
 // QQ通知
 async function noticeQQ (comment) {
   if (!config.QM_SENDKEY) {
@@ -1093,6 +1113,8 @@ async function noticeReply (currentComment) {
   // 回复自己的评论，不邮件通知
   if (currentComment.mail === parentComment.mail) return
   const PARENT_NICK = parentComment.nick
+  const IMG = getAvatar(currentComment)
+  const PARENT_IMG = getAvatar(parentComment)
   const SITE_NAME = config.SITE_NAME
   const NICK = currentComment.nick
   const COMMENT = currentComment.comment
@@ -1103,6 +1125,8 @@ async function noticeReply (currentComment) {
   let emailContent
   if (config.MAIL_TEMPLATE) {
     emailContent = config.MAIL_TEMPLATE
+      .replace(/\${IMG}/g, IMG)
+      .replace(/\${PARENT_IMG}/g, PARENT_IMG)
       .replace(/\${SITE_URL}/g, SITE_URL)
       .replace(/\${SITE_NAME}/g, SITE_NAME)
       .replace(/\${PARENT_NICK}/g, PARENT_NICK)
@@ -1458,7 +1482,7 @@ function getAvatar (comment) {
   if (comment.avatar) {
     return comment.avatar
   } else {
-    const gravatarCdn = config.GRAVATAR_CDN || 'cn.gravatar.com'
+    const gravatarCdn = config.GRAVATAR_CDN || 'cravatar.cn'
     const defaultGravatar = config.DEFAULT_GRAVATAR || 'identicon'
     const mailMd5 = comment.mailMd5 || md5(comment.mail)
     return `https://${gravatarCdn}/avatar/${mailMd5}?d=${defaultGravatar}`
@@ -1504,6 +1528,7 @@ async function getConfig () {
       DEFAULT_GRAVATAR: config.DEFAULT_GRAVATAR,
       SHOW_IMAGE: config.SHOW_IMAGE || 'true',
       IMAGE_CDN: config.IMAGE_CDN,
+      IMAGE_CDN_TOKEN: config.IMAGE_CDN_TOKEN,
       SHOW_EMOTION: config.SHOW_EMOTION || 'true',
       EMOTION_CDN: config.EMOTION_CDN,
       COMMENT_PLACEHOLDER: config.COMMENT_PLACEHOLDER,
@@ -1565,6 +1590,7 @@ async function readConfig () {
 
 // 写入配置
 async function writeConfig (newConfig) {
+  if (!Object.keys(newConfig).length) return 0
   console.log('写入配置：', newConfig)
   try {
     let updated
@@ -1600,7 +1626,7 @@ async function isAdmin () {
 
 // 判断是否为递归调用（即云函数调用自身）
 function isRecursion () {
-  return request.headers['x-twikoo-recursion'] === 'true'
+  return request.headers['x-twikoo-recursion'] === (config.ADMIN_PASS || 'true')
 }
 
 // 建立数据库 collections

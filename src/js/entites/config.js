@@ -12,6 +12,7 @@ class Config {
     this.DEFAULT_GRAVATAR = model.DEFAULT_GRAVATAR
     this.SHOW_IMAGE = model.SHOW_IMAGE
     this.IMAGE_CDN = model.IMAGE_CDN
+    this.IMAGE_CDN_TOKEN = model.IMAGE_CDN_TOKEN
     this.SHOW_EMOTION = model.SHOW_EMOTION
     this.EMOTION_CDN = model.EMOTION_CDN
     this.COMMENT_PLACEHOLDER = model.COMMENT_PLACEHOLDER
@@ -36,6 +37,7 @@ class Config {
     this.QM_SENDKEY = model.QM_SENDKEY
     this.PUSH_PLUS_TOKEN = model.PUSH_PLUS_TOKEN
     this.WECOM_API_URL = model.WECOM_API_URL
+    this.DINGTALK_WEBHOOK_URL = model.DINGTALK_WEBHOOK_URL
     this.SENDER_NAME = model.SENDER_NAME
     this.SENDER_EMAIL = model.SENDER_EMAIL
     this.BLOGGER_EMAIL = model.BLOGGER_EMAIL
