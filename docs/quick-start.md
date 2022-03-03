@@ -1,6 +1,6 @@
 # 快速上手
 
-Twikoo 分为云函数和前端两部分，部署时请注意保存二者版本一致。
+Twikoo 分为云函数和前端两部分，部署时请注意保持二者版本一致。
 
 * [云函数部署](#云函数部署)有 4 种方式，[一键部署](#一键部署)、[手动部署](#手动部署)、[命令行部署](#命令行部署)和[Vercel 部署](#vercel-部署)。
 * [前端部署](#前端部署)有 2 种方式，如果您的网站主题支持 Twikoo，您只需在配置文件中指定 Twikoo 即可；如果您的网站主题不支持 Twikoo，您需要修改源码手动引入 Twikoo 的 js 文件并初始化之。
@@ -44,7 +44,7 @@ exports.main = require('twikoo-func').main
 8. 创建完成后，点击“twikoo"进入云函数详情页，进入“函数代码”标签，点击“文件 - 新建文件”，输入 `package.json`，回车
 9. 复制以下代码、粘贴到代码框中，点击“保存并安装依赖”
 ``` json
-{ "dependencies": { "twikoo-func": "1.4.15" } }
+{ "dependencies": { "twikoo-func": "1.4.18" } }
 ```
 
 ### 命令行部署
@@ -174,7 +174,7 @@ twikoo:
 
 ``` html
 <div id="tcomment"></div>
-<script src="https://cdn.jsdelivr.net/npm/twikoo@1.4.15/dist/twikoo.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/twikoo@1.4.18/dist/twikoo.all.min.js"></script>
 <script>
 twikoo.init({
   envId: '您的环境id',
@@ -187,6 +187,17 @@ twikoo.init({
 ```
 
 > 建议使用 CDN 引入 Twikoo 的用户在链接地址上锁定版本，以免将来 Twikoo 升级时受到非兼容性更新的影响。
+
+#### [爆米兔](https://cdn.baomitu.com/) CDN 镜像
+
+请参考爆米兔前端静态资源库 [https://cdn.baomitu.com/twikoo](https://cdn.baomitu.com/twikoo)
+
+引入的 CDN 链接替换为如下即可：
+
+```diff
+- <script src="https://cdn.jsdelivr.net/npm/twikoo@1.4.18/dist/twikoo.all.min.js"></script>
++ <script src="https://lib.baomitu.com/twikoo/1.4.18/twikoo.all.min.js" crossorigin="anonymous" integrity="sha512-czTF7AsBQKM8Udh7f2kYxoEVO6MRUGoBACWgrnURTySkkV+wBwzOiFncA2fjR2JSOJ6vaTGILYIE1laKPH8fKA=="></script>
+```
 
 ## 开启管理面板
 
