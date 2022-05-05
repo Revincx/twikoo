@@ -75,17 +75,17 @@ const getUrl = (path) => {
     // 从全局变量获取 path
     url = window.TWIKOO_MAGIC_PATH
   } else if (path && typeof path === 'string') {
-    try {
-      // 参数视为表达式获取 path
-      // eslint-disable-next-line no-eval
-      url = eval(path)
-      if (typeof url !== 'string') {
-        // 参数视为字符串常量获取 path
+    switch (path) {
+      case 'location.pathname':
+      case 'window.location.pathname':
+        url = window.location.pathname
+        break
+      case 'location.href':
+      case 'window.location.href':
+        url = window.location.href
+        break
+      default:
         url = path
-      }
-    } catch (e) {
-      // 参数视为字符串常量获取 path
-      url = path
     }
   } else {
     // 默认 path
@@ -142,6 +142,17 @@ const renderMath = (el, options) => {
   }
 }
 
+const blobToDataURL = (blob) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      const base64 = evt.target.result
+      resolve(base64)
+    }
+    reader.readAsDataURL(blob)
+  })
+}
+
 export {
   t,
   setLanguage,
@@ -164,5 +175,6 @@ export {
   getUrl,
   readAsText,
   renderLinks,
-  renderMath
+  renderMath,
+  blobToDataURL
 }

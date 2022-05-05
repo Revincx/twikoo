@@ -24,6 +24,7 @@ class Config {
     this.QCLOUD_SECRET_KEY = model.QCLOUD_SECRET_KEY
     this.LIMIT_PER_MINUTE = model.LIMIT_PER_MINUTE
     this.LIMIT_PER_MINUTE_ALL = model.LIMIT_PER_MINUTE_ALL
+    this.LIMIT_LENGTH = model.LIMIT_LENGTH
     this.FORBIDDEN_WORDS = model.FORBIDDEN_WORDS
     this.NOTIFY_SPAM = model.NOTIFY_SPAM
     this.SC_MAIL_NOTIFY = model.SC_MAIL_NOTIFY
@@ -33,13 +34,8 @@ class Config {
     this.SMTP_SECURE = model.SMTP_SECURE
     this.SMTP_USER = model.SMTP_USER
     this.SMTP_PASS = model.SMTP_PASS
-    this.SC_SENDKEY = model.SC_SENDKEY
-    this.QM_SENDKEY = model.QM_SENDKEY
-    this.QQ_API = model.QQ_API
-    this.PUSH_PLUS_TOKEN = model.PUSH_PLUS_TOKEN
-    this.WECOM_API_URL = model.WECOM_API_URL
-    this.DINGTALK_WEBHOOK_URL = model.DINGTALK_WEBHOOK_URL
-    this.PUSHDEER_KEY = model.PUSHDEER_KEY
+    this.PUSHOO_CHANNEL = model.PUSHOO_CHANNEL
+    this.PUSHOO_TOKEN = model.PUSHOO_TOKEN
     this.SENDER_NAME = model.SENDER_NAME
     this.SENDER_EMAIL = model.SENDER_EMAIL
     this.BLOGGER_EMAIL = model.BLOGGER_EMAIL
@@ -48,6 +44,8 @@ class Config {
     this.MAIL_TEMPLATE = model.MAIL_TEMPLATE
     this.MAIL_SUBJECT_ADMIN = model.MAIL_SUBJECT_ADMIN
     this.MAIL_TEMPLATE_ADMIN = model.MAIL_TEMPLATE_ADMIN
+    this.SHOW_UA = model.SHOW_UA
+    this.SHOW_REGION = model.SHOW_REGION
   }
 }
 

@@ -1,16 +1,16 @@
 /*!
- * Twikoo cloudbase function v1.4.18
+ * Twikoo cloudbase function
  * (c) 2020-present iMaeGoo
  * Released under the MIT License.
  */
 
 // 三方依赖 / 3rd party dependencies
+const { version: VERSION } = require('./package.json')
 const tcb = require('@cloudbase/node-sdk') // 云开发 SDK
 const md5 = require('blueimp-md5') // MD5 加解密
 const bowser = require('bowser') // UserAgent 格式化
 const nodemailer = require('nodemailer') // 发送邮件
 const axios = require('axios') // 发送 REST 请求
-const qs = require('querystring') // URL 参数格式化
 const $ = require('cheerio') // jQuery 服务器版
 const { AkismetClient } = require('akismet-api') // 反垃圾 API
 const createDOMPurify = require('dompurify') // 反 XSS
@@ -19,6 +19,10 @@ const xml2js = require('xml2js') // XML 解析
 const marked = require('marked') // Markdown 解析
 const CryptoJS = require('crypto-js') // 编解码
 const tencentcloud = require('tencentcloud-sdk-nodejs') // 腾讯云 API NODEJS SDK
+const fs = require('fs')
+const FormData = require('form-data') // 图片上传
+const pushoo = require('pushoo').default // 即时消息通知
+const ipToRegion = require('dy-node-ip2region') // IP 属地查询
 
 // 云函数 SDK / tencent cloudbase sdk
 const app = tcb.init({ env: tcb.SYMBOL_CURRENT_ENV })
@@ -30,8 +34,10 @@ const _ = db.command
 const window = new JSDOM('').window
 const DOMPurify = createDOMPurify(window)
 
+// 初始化 IP 属地
+const ipRegionSearcher = ipToRegion.create()
+
 // 常量 / constants
-const VERSION = '1.4.18'
 const RES_CODE = {
   SUCCESS: 0,
   FAIL: 1000,
@@ -44,23 +50,28 @@ const RES_CODE = {
   PASS_NOT_MATCH: 1023,
   NEED_LOGIN: 1024,
   FORBIDDEN: 1403,
-  AKISMET_ERROR: 1030
+  AKISMET_ERROR: 1030,
+  UPLOAD_FAILED: 1040
 }
 const ADMIN_USER_ID = 'admin'
+const MAX_REQUEST_TIMES = parseInt(process.env.TWIKOO_THROTTLE) || 250
 
 // 全局变量 / variables
 // 警告：全局定义的变量，会被云函数缓存，请慎重定义全局变量
 // 参考 https://docs.cloudbase.net/cloud-function/deep-principle.html 中的 “实例复用”
 let config
 let transporter
+const requestTimes = {}
 
 // 云函数入口点 / entry point
 exports.main = async (event, context) => {
+  console.log('请求ＩＰ：', auth.getClientIP())
   console.log('请求方法：', event.event)
   console.log('请求参数：', event)
   let res = {}
-  await readConfig()
   try {
+    protect()
+    await readConfig()
     switch (event.event) {
       case 'GET_FUNC_VERSION':
         res = getFuncVersion()
@@ -84,7 +95,7 @@ exports.main = async (event, context) => {
         res = await commentLike(event)
         break
       case 'COMMENT_SUBMIT':
-        res = await commentSubmit(event)
+        res = await commentSubmit(event, context)
         break
       case 'POST_SUBMIT':
         res = await postSubmit(event.comment, context)
@@ -118,6 +129,9 @@ exports.main = async (event, context) => {
         break
       case 'EMAIL_TEST': // >= 1.4.6
         res = await emailTest(event)
+        break
+      case 'UPLOAD_IMAGE': // >= 1.5.0
+        res = await uploadImage(event)
         break
       default:
         if (event.event) {
@@ -333,13 +347,15 @@ function parseComment (comments, uid) {
 function toCommentDto (comment, uid, replies = [], comments = []) {
   let displayOs = ''
   let displayBrowser = ''
-  try {
-    const ua = bowser.getParser(comment.ua)
-    const os = ua.getOS()
-    displayOs = [os.name, os.versionName ? os.versionName : os.version].join(' ')
-    displayBrowser = [ua.getBrowserName(), ua.getBrowserVersion()].join(' ')
-  } catch (e) {
-    console.log('bowser 错误：', e)
+  if (config.SHOW_UA !== 'false') {
+    try {
+      const ua = bowser.getParser(comment.ua)
+      const os = ua.getOS()
+      displayOs = [os.name, os.versionName ? os.versionName : os.version].join(' ')
+      displayBrowser = [ua.getBrowserName(), ua.getBrowserVersion()].join(' ')
+    } catch (e) {
+      console.log('bowser 错误：', e)
+    }
   }
   return {
     id: comment._id,
@@ -350,6 +366,7 @@ function toCommentDto (comment, uid, replies = [], comments = []) {
     comment: comment.comment,
     os: displayOs,
     browser: displayBrowser,
+    ipRegion: config.SHOW_REGION ? getIpRegion({ ip: comment.ip }) : '',
     master: comment.master,
     like: comment.like ? comment.like.length : 0,
     liked: comment.like ? comment.like.findIndex((item) => item === uid) > -1 : false,
@@ -430,7 +447,7 @@ function getCommentSearchCondition (event) {
 
 function parseCommentForAdmin (comments) {
   for (const comment of comments) {
-    comment.commentText = $(comment.comment).text()
+    comment.ipRegion = getIpRegion({ ip: comment.ip, detail: true })
   }
   return comments
 }
@@ -828,7 +845,7 @@ async function like (id, uid) {
  * @param {String} event.pid 回复的 ID
  * @param {String} event.rid 评论楼 ID
  */
-async function commentSubmit (event) {
+async function commentSubmit (event, context) {
   const res = {}
   // 参数校验
   validate(event, ['url', 'ua', 'comment'])
@@ -842,7 +859,7 @@ async function commentSubmit (event) {
   // 异步垃圾检测、发送评论通知
   try {
     await app.callFunction({
-      name: 'twikoo',
+      name: context.function_name,
       data: { event: 'POST_SUBMIT', comment }
     }, { timeout: 300 }) // 设置较短的 timeout 来实现异步
   } catch (e) {
@@ -876,15 +893,9 @@ async function sendNotice (comment) {
   await Promise.all([
     noticeMaster(comment),
     noticeReply(comment),
-    noticeWeChat(comment),
-    noticePushPlus(comment),
-    noticeWeComPush(comment),
-    noticeDingTalkHook(comment),
-    noticePushdeer(comment),
-    noticeQQ(comment),
-    noticeQQAPI(comment)
+    noticePushoo(comment)
   ]).catch(err => {
-    console.error('邮件通知异常：', err)
+    console.error('通知异常：', err)
   })
 }
 
@@ -928,16 +939,8 @@ async function initMailer ({ throwErr = false } = {}) {
 async function noticeMaster (comment) {
   if (!transporter) if (!await initMailer()) return
   if (config.BLOGGER_EMAIL === comment.mail) return
-  const IM_PUSH_CONFIGS = [
-    'SC_SENDKEY',
-    'QM_SENDKEY',
-    'PUSH_PLUS_TOKEN',
-    'WECOM_API_URL',
-    'DINGTALK_WEBHOOK_URL',
-    'PUSHDEER_KEY'
-  ]
   // 判断是否存在即时消息推送配置
-  const hasIMPushConfig = IM_PUSH_CONFIGS.some(item => !!config[item])
+  const hasIMPushConfig = config.PUSHOO_CHANNEL && config.PUSHOO_TOKEN
   // 存在即时消息推送配置，则默认不发送邮件给博主
   if (hasIMPushConfig && config.SC_MAIL_NOTIFY !== 'true') return
   const SITE_NAME = config.SITE_NAME
@@ -986,125 +989,29 @@ async function noticeMaster (comment) {
   return sendResult
 }
 
-// 微信通知
-async function noticeWeChat (comment) {
-  if (!config.SC_SENDKEY) {
-    console.log('没有配置 server 酱，放弃微信通知')
+// 即时消息通知
+async function noticePushoo (comment) {
+  if (!config.PUSHOO_CHANNEL || !config.PUSHOO_TOKEN) {
+    console.log('没有配置 pushoo，放弃即时消息通知')
     return
   }
   if (config.BLOGGER_EMAIL === comment.mail) return
   const pushContent = getIMPushContent(comment)
-  let scApiUrl = 'https://sc.ftqq.com'
-  let scApiParam = {
-    text: pushContent.subject,
-    desp: pushContent.content
-  }
-  if (config.SC_SENDKEY.substring(0, 3).toLowerCase() === 'sct') {
-    // 兼容 server 酱测试专版
-    scApiUrl = 'https://sctapi.ftqq.com'
-    scApiParam = {
-      title: pushContent.subject,
-      desp: pushContent.content
-    }
-  }
-  const sendResult = await axios.post(`${scApiUrl}/${config.SC_SENDKEY}.send`, qs.stringify(scApiParam), {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-  })
-  console.log('微信通知结果：', sendResult)
-}
-
-// pushplus 通知
-async function noticePushPlus (comment) {
-  if (!config.PUSH_PLUS_TOKEN) {
-    console.log('没有配置 pushplus，放弃通知')
-    return
-  }
-  if (config.BLOGGER_EMAIL === comment.mail) return
-  const pushContent = getIMPushContent(comment, { withUrl: false, html: true })
-  const ppApiUrl = 'http://pushplus.hxtrip.com/send'
-  const ppApiParam = {
-    token: config.PUSH_PLUS_TOKEN,
+  const sendResult = await pushoo(config.PUSHOO_CHANNEL, {
+    token: config.PUSHOO_TOKEN,
     title: pushContent.subject,
-    content: pushContent.content
-  }
-  const sendResult = await axios.post(ppApiUrl, ppApiParam)
-  console.log('pushplus 通知结果：', sendResult)
-}
-
-// 自定义WeCom企业微信api通知
-async function noticeWeComPush (comment) {
-  if (!config.WECOM_API_URL) {
-    console.log('未配置 WECOM_API_URL，跳过企业微信推送')
-    return
-  }
-  if (config.BLOGGER_EMAIL === comment.mail) return
-  const SITE_URL = config.SITE_URL
-  const WeComContent = config.SITE_NAME + '有新评论啦！🎉🎉' + '\n\n' + '@' + comment.nick + '说：' + $(comment.comment).text() + '\n' + 'E-mail: ' + comment.mail + '\n' + 'IP: ' + comment.ip + '\n' + '点此查看完整内容：' + appendHashToUrl(comment.href || SITE_URL + comment.url, comment.id)
-  const WeComApiContent = encodeURIComponent(WeComContent)
-  const WeComApiUrl = config.WECOM_API_URL
-  const sendResult = await axios.get(WeComApiUrl + WeComApiContent)
-  console.log('WinxinPush 通知结果：', sendResult)
-}
-
-// 自定义钉钉WebHook通知
-async function noticeDingTalkHook (comment) {
-  if (!config.DINGTALK_WEBHOOK_URL) {
-    console.log('没有配置 DingTalk_WebHook，放弃钉钉WebHook推送')
-    return
-  }
-  if (config.BLOGGER_EMAIL === comment.mail) return
-  const DingTalkContent = config.SITE_NAME + '有新评论啦！🎉🎉' + '\n\n' + '@' + comment.nick + ' 说：' + $(comment.comment).text() + '\n' + 'E-mail: ' + comment.mail + '\n' + 'IP: ' + comment.ip + '\n' + '点此查看完整内容：' + appendHashToUrl(comment.href || config.SITE_URL + comment.url, comment.id)
-  const sendResult = await axios.post(config.DINGTALK_WEBHOOK_URL, { msgtype: 'text', text: { content: DingTalkContent } })
-  console.log('钉钉WebHook 通知结果：', sendResult)
-}
-
-// QQ通知
-async function noticeQQ (comment) {
-  if (!config.QM_SENDKEY) {
-    console.log('没有配置 qmsg 酱，放弃QQ通知')
-    return
-  }
-  if (config.BLOGGER_EMAIL === comment.mail) return
-  const pushContent = getIMPushContent(comment, { withUrl: false })
-  const qmApiUrl = 'https://qmsg.zendee.cn'
-  const qmApiParam = {
-    msg: pushContent.subject + '\n' + pushContent.content.replace(/<br>/g, '\n')
-  }
-  const sendResult = await axios.post(`${qmApiUrl}/send/${config.QM_SENDKEY}`, qs.stringify(qmApiParam), {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    content: pushContent.content,
+    options: {
+      bark: {
+        url: pushContent.url
+      }
+    }
   })
-  console.log('QQ通知结果：', sendResult)
-}
-
-async function noticePushdeer (comment) {
-  if (!config.PUSHDEER_KEY) return
-  if (config.BLOGGER_EMAIL === comment.mail) return
-  const pushContent = getIMPushContent(comment, { markdown: true })
-  const sendResult = await axios.post('https://api2.pushdeer.com/message/push', {
-    pushkey: config.PUSHDEER_KEY,
-    text: pushContent.subject,
-    desp: pushContent.content
-  })
-  console.log('Pushdeer 通知结果：', sendResult)
-}
-
-// QQ私有化API通知
-async function noticeQQAPI (comment) {
-  if (!config.QQ_API) {
-    console.log('没有配置QQ私有化api，放弃QQ通知')
-    return
-  }
-  if (config.BLOGGER_EMAIL === comment.mail) return
-  const pushContent = getIMPushContent(comment)
-  const qqApiParam = {
-    message: pushContent.subject + '\n' + pushContent.content.replace(/<br>/g, '\n')
-  }
-  const sendResult = await axios.post(`${config.QQ_API}`, qs.stringify(qqApiParam))
-  console.log('QQ私有化api通知结果：', sendResult)
+  console.log('即时消息通知结果：', sendResult)
 }
 
 // 即时消息推送内容获取
-function getIMPushContent (comment, { withUrl = true, markdown = false, html = false } = {}) {
+function getIMPushContent (comment) {
   const SITE_NAME = config.SITE_NAME
   const NICK = comment.nick
   const MAIL = comment.mail
@@ -1113,20 +1020,17 @@ function getIMPushContent (comment, { withUrl = true, markdown = false, html = f
   const SITE_URL = config.SITE_URL
   const POST_URL = appendHashToUrl(comment.href || SITE_URL + comment.url, comment.id)
   const subject = config.MAIL_SUBJECT_ADMIN || `${SITE_NAME}有新评论了`
-  let content = `评论人：${NICK}(${MAIL})<br>评论人IP：${IP}<br>评论内容：${COMMENT}<br>`
-  // Qmsg 会过滤带网址的推送消息，所以不能带网址
-  if (withUrl) {
-    content += `原文链接：${markdown ? `[${POST_URL}](${POST_URL})` : POST_URL}`
-  }
-  if (html) {
-    content += `原文链接：<a href="${POST_URL}" rel="nofollow">${POST_URL}</a>`
-  }
-  if (markdown) {
-    content = content.replace(/<br>/g, '\n\n')
-  }
+  const content = `评论人：${NICK} ([${MAIL}](mailto:${MAIL}))
+
+评论人IP：${IP}
+
+评论内容：${COMMENT}
+
+原文链接：[${POST_URL}](${POST_URL})`
   return {
     subject,
-    content
+    content,
+    url: POST_URL
   }
 }
 
@@ -1226,7 +1130,7 @@ async function parse (comment) {
     comment: DOMPurify.sanitize(comment.comment, { FORBID_TAGS: ['style'], FORBID_ATTR: ['style'] }),
     pid: comment.pid ? comment.pid : comment.rid,
     rid: comment.rid,
-    isSpam: isAdminUser ? false : preCheckSpam(comment.comment),
+    isSpam: isAdminUser ? false : preCheckSpam(comment),
     created: timestamp,
     updated: timestamp
   }
@@ -1241,7 +1145,8 @@ async function parse (comment) {
 // 限流
 async function limitFilter () {
   // 限制每个 IP 每 10 分钟发表的评论数量
-  const limitPerMinute = parseInt(config.LIMIT_PER_MINUTE)
+  let limitPerMinute = parseInt(config.LIMIT_PER_MINUTE)
+  if (Number.isNaN(limitPerMinute)) limitPerMinute = 10
   if (limitPerMinute) {
     let count = await db
       .collection('comment')
@@ -1256,7 +1161,8 @@ async function limitFilter () {
     }
   }
   // 限制所有 IP 每 10 分钟发表的评论数量
-  const limitPerMinuteAll = parseInt(config.LIMIT_PER_MINUTE_ALL)
+  let limitPerMinuteAll = parseInt(config.LIMIT_PER_MINUTE_ALL)
+  if (Number.isNaN(limitPerMinuteAll)) limitPerMinuteAll = 10
   if (limitPerMinuteAll) {
     let count = await db
       .collection('comment')
@@ -1272,7 +1178,13 @@ async function limitFilter () {
 }
 
 // 预垃圾评论检测
-function preCheckSpam (comment) {
+function preCheckSpam ({ comment, nick }) {
+  // 长度限制
+  let limitLength = parseInt(config.LIMIT_LENGTH)
+  if (Number.isNaN(limitLength)) limitLength = 500
+  if (limitLength && comment.length > limitLength) {
+    throw new Error('评论内容过长')
+  }
   if (config.AKISMET_KEY === 'MANUAL_REVIEW') {
     // 人工审核
     console.log('已使用人工审核模式，评论审核后才会发表~')
@@ -1280,7 +1192,7 @@ function preCheckSpam (comment) {
   } else if (config.FORBIDDEN_WORDS) {
     // 违禁词检测
     for (const forbiddenWord of config.FORBIDDEN_WORDS.split(',')) {
-      if (comment.indexOf(forbiddenWord.trim()) !== -1) {
+      if (comment.indexOf(forbiddenWord.trim()) !== -1 || nick.indexOf(forbiddenWord.trim()) !== -1) {
         console.log('包含违禁词，直接标记为垃圾评论~')
         return true
       }
@@ -1491,9 +1403,9 @@ async function emailTest (event) {
   const isAdminUser = await isAdmin()
   if (isAdminUser) {
     try {
-      if (!transporter) {
-        await initMailer({ throwErr: true })
-      }
+      // 邮件测试前清除 transporter，保证读取的是最新的配置
+      transporter = null
+      await initMailer({ throwErr: true })
       const sendResult = await transporter.sendMail({
         from: config.SENDER_EMAIL,
         to: event.mail || config.BLOGGER_EMAIL || config.SENDER_EMAIL,
@@ -1509,6 +1421,80 @@ async function emailTest (event) {
     res.message = '请先登录'
   }
   return res
+}
+
+async function uploadImage (event) {
+  const { photo, fileName } = event
+  const res = {}
+  try {
+    if (!config.IMAGE_CDN || !config.IMAGE_CDN_TOKEN) {
+      throw new Error('未配置图片上传服务')
+    }
+    // tip: qcloud 图床走前端上传，其他图床走后端上传
+    if (config.IMAGE_CDN === '7bu') {
+      await uploadImageToLskyPro({ photo, fileName, config, res, imageCdn: 'https://7bu.top' })
+    } else if (config.IMAGE_CDN === 'smms') {
+      await uploadImageToSmms({ photo, fileName, config, res })
+    } else if (isUrl(config.IMAGE_CDN)) {
+      await uploadImageToLskyPro({ photo, fileName, config, res, imageCdn: config.IMAGE_CDN })
+    }
+  } catch (e) {
+    console.error(e)
+    res.code = RES_CODE.UPLOAD_FAILED
+    res.err = e.message
+  }
+  return res
+}
+
+async function uploadImageToSmms ({ photo, fileName, config, res }) {
+  // SM.MS 图床 https://sm.ms
+  const formData = new FormData()
+  formData.append('smfile', base64UrlToReadStream(photo, fileName))
+  const uploadResult = await axios.post('https://sm.ms/api/v2/upload', formData, {
+    headers: {
+      ...formData.getHeaders(),
+      Authorization: config.IMAGE_CDN_TOKEN
+    }
+  })
+  if (uploadResult.data.success) {
+    res.data = uploadResult.data.data
+  } else {
+    throw new Error(uploadResult.data.message)
+  }
+}
+
+async function uploadImageToLskyPro ({ photo, fileName, config, res, imageCdn }) {
+  // 自定义兰空图床（v2）URL
+  const formData = new FormData()
+  formData.append('file', base64UrlToReadStream(photo, fileName))
+  const url = `${imageCdn}/api/v1/upload`
+  let token = config.IMAGE_CDN_TOKEN
+  if (!token.startsWith('Bearer')) {
+    token = `Bearer ${token}`
+  }
+  const uploadResult = await axios.post(url, formData, {
+    headers: {
+      ...formData.getHeaders(),
+      Authorization: token
+    }
+  })
+  if (uploadResult.data.status) {
+    res.data = uploadResult.data.data
+    res.data.url = res.data.links.url
+  } else {
+    throw new Error(uploadResult.data.message)
+  }
+}
+
+function base64UrlToReadStream (base64Url, fileName) {
+  const base64 = base64Url.split(';base64,').pop()
+  const path = `/tmp/${fileName}`
+  fs.writeFileSync(path, base64, { encoding: 'base64' })
+  return fs.createReadStream(path)
+}
+
+function isUrl (s) {
+  return /^http(s)?:\/\//.test(s)
 }
 
 function getAvatar (comment) {
@@ -1567,7 +1553,8 @@ function getConfig () {
       REQUIRED_FIELDS: config.REQUIRED_FIELDS,
       HIDE_ADMIN_CRYPT: config.HIDE_ADMIN_CRYPT,
       HIGHLIGHT: config.HIGHLIGHT || 'true',
-      HIGHLIGHT_THEME: config.HIGHLIGHT_THEME
+      HIGHLIGHT_THEME: config.HIGHLIGHT_THEME,
+      LIMIT_LENGTH: config.LIMIT_LENGTH
     }
   }
 }
@@ -1601,6 +1588,18 @@ async function setConfig (event) {
       code: RES_CODE.NEED_LOGIN,
       message: '请先登录'
     }
+  }
+}
+
+function protect () {
+  // 防御
+  const ip = auth.getClientIP()
+  requestTimes[ip] = (requestTimes[ip] || 0) + 1
+  if (requestTimes[ip] > MAX_REQUEST_TIMES) {
+    console.log(`${ip} 当前请求次数为 ${requestTimes[ip]}，已超过最大请求次数`)
+    throw new Error('Too Many Requests')
+  } else {
+    console.log(`${ip} 当前请求次数为 ${requestTimes[ip]}`)
   }
 }
 
@@ -1658,6 +1657,27 @@ async function getUid () {
 async function isAdmin () {
   const userInfo = await auth.getEndUserInfo()
   return ADMIN_USER_ID === userInfo.userInfo.customUserId
+}
+
+/**
+ * 获取 IP 属地
+ * @param detail true 返回省市运营商，false 只返回省
+ * @returns {String}
+ */
+function getIpRegion ({ ip, detail = false }) {
+  if (!ip) return ''
+  try {
+    const { region } = ipRegionSearcher.btreeSearchSync(ip)
+    const [,, province, city, isp] = region.split('|')
+    if (detail) {
+      return province === city ? [city, isp].join(' ') : [province, city, isp].join(' ')
+    } else {
+      return province
+    }
+  } catch (e) {
+    console.error('IP 属地查询失败：', e)
+    return ''
+  }
 }
 
 // 判断是否为递归调用（即云函数调用自身）

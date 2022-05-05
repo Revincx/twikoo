@@ -40,7 +40,7 @@
 
 <script>
 import { call, logger, t } from '../../js/utils'
-import { version } from '../../../package.json'
+import { version } from '../../version'
 
 export default {
   data () {
@@ -78,6 +78,13 @@ export default {
           ]
         },
         {
+          name: t('ADMIN_CONFIG_CATEGORY_PRIVACY'),
+          items: [
+            { key: 'SHOW_UA', desc: t('ADMIN_CONFIG_ITEM_SHOW_UA'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}false`, value: '' },
+            { key: 'SHOW_REGION', desc: t('ADMIN_CONFIG_ITEM_SHOW_REGION'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}true`, value: '' }
+          ]
+        },
+        {
           name: t('ADMIN_CONFIG_CATEGORY_SPAM'),
           items: [
             { key: 'AKISMET_KEY', desc: t('ADMIN_CONFIG_ITEM_AKISMET_KEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}8651783edxxx`, value: '' },
@@ -85,6 +92,7 @@ export default {
             { key: 'QCLOUD_SECRET_KEY', desc: t('ADMIN_CONFIG_ITEM_QCLOUD_SECRET_KEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}XrkOnvKWS7WeXbP1QZT76rPgtpWx73D7`, value: '', secret: true },
             { key: 'LIMIT_PER_MINUTE', desc: t('ADMIN_CONFIG_ITEM_LIMIT_PER_MINUTE'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}5`, value: '' },
             { key: 'LIMIT_PER_MINUTE_ALL', desc: t('ADMIN_CONFIG_ITEM_LIMIT_PER_MINUTE_ALL'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}5`, value: '' },
+            { key: 'LIMIT_LENGTH', desc: t('ADMIN_CONFIG_ITEM_LIMIT_LENGTH'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}100`, value: '' },
             { key: 'FORBIDDEN_WORDS', desc: t('ADMIN_CONFIG_ITEM_FORBIDDEN_WORDS'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}快递,空包`, value: '' },
             { key: 'NOTIFY_SPAM', desc: t('ADMIN_CONFIG_ITEM_NOTIFY_SPAM'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}false`, value: '' }
           ]
@@ -92,13 +100,8 @@ export default {
         {
           name: t('ADMIN_CONFIG_CATEGORY_IM'),
           items: [
-            { key: 'SC_SENDKEY', desc: t('ADMIN_CONFIG_ITEM_SC_SENDKEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}SCT1364TKdsiGjGvyAZNYDVnuHW12345`, value: '' },
-            { key: 'QM_SENDKEY', desc: t('ADMIN_CONFIG_ITEM_QM_SENDKEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}k2ni28jkmn72tqdvqryt9827u0o9nbpok`, value: '' },
-            { key: 'QQ_API', desc: t('ADMIN_CONFIG_ITEM_QQ_API'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}http://example.com/send_private_msg?user_id=XXXXX?token=token`, value: '' },
-            { key: 'PUSH_PLUS_TOKEN', desc: t('ADMIN_CONFIG_ITEM_PUSH_PLUS_TOKEN'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}f8ae2b8a107a408b803896a0ec012345`, value: '' },
-            { key: 'WECOM_API_URL', desc: t('ADMIN_CONFIG_ITEM_WECOM_API_URL'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}https://xxx.ap-shanghai.app.tcloudbase.com/自定义api云函数?id=ww***&secert=Ne***&agentId=10***03&msg=`, value: '' },
-            { key: 'DINGTALK_WEBHOOK_URL', desc: t('ADMIN_CONFIG_ITEM_DINGTALK_WEBHOOK_URL'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}https://oapi.dingtalk.com/robot/send?access_token=***`, value: '' },
-            { key: 'PUSHDEER_KEY', desc: t('ADMIN_CONFIG_ITEM_PUSHDEER_KEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}PDU431TfFHZICvR6lJrFBswSRN1cJB6G5X12345`, value: '' },
+            { key: 'PUSHOO_CHANNEL', desc: t('ADMIN_CONFIG_ITEM_PUSHOO_CHANNEL'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}pushdeer`, value: '' },
+            { key: 'PUSHOO_TOKEN', desc: t('ADMIN_CONFIG_ITEM_PUSHOO_TOKEN'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}PDU431TfFHZICvR6lJrFBswSRN1cJ*****zzFvR`, value: '' },
             { key: 'SC_MAIL_NOTIFY', desc: t('ADMIN_CONFIG_ITEM_SC_MAIL_NOTIFY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}true`, value: '' }
           ]
         },
@@ -211,6 +214,7 @@ export default {
 .tk-admin-config-desc {
   margin-top: 0.5em;
   font-size: 0.75em;
+  overflow-wrap: break-word;
 }
 .tk-admin-config-actions {
   display: flex;

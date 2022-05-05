@@ -10,6 +10,95 @@ const S = {
   AI: 'ADMIN_IMPORT'
 }
 
+const pushooChannels = [
+  'qmsg',
+  'serverchan',
+  'pushplus',
+  'pushplushxtrip',
+  'dingtalk',
+  'wecom',
+  'bark',
+  'gocqhttp',
+  'atri',
+  'pushdeer',
+  'igot',
+  'telegram',
+  'feishu'
+].map(s => `"${s}"`)
+
+const smtpServices = [
+  '126',
+  '163',
+  '1und1',
+  'AOL',
+  'DebugMail',
+  'DynectEmail',
+  'FastMail',
+  'GandiMail',
+  'Gmail',
+  'Godaddy',
+  'GodaddyAsia',
+  'GodaddyEurope',
+  'Hotmail',
+  'Mail.ru',
+  'Maildev',
+  'Mailgun',
+  'Mailjet',
+  'Mailosaur',
+  'Mandrill',
+  'Naver',
+  'OpenMailBox',
+  'Outlook365',
+  'Postmark',
+  'QQ',
+  'QQex',
+  'SES',
+  'SES-EU-WEST-1',
+  'SES-US-EAST-1',
+  'SES-US-WEST-2',
+  'SendCloud',
+  'SendGrid',
+  'SendPulse',
+  'SendinBlue',
+  'Sparkpost',
+  'Yahoo',
+  'Yandex',
+  'Zoho',
+  'hot.ee',
+  'iCloud',
+  'mail.ee',
+  'qiye.aliyun'
+].map(s => `"${s}"`)
+
+const highlightThemes = [
+  'default',
+  'coy',
+  'dark',
+  'funky',
+  'okaidia',
+  'solarizedlight',
+  'tomorrow',
+  'twilight'
+].map(s => `"${s}"`)
+
+const imageBedServices = [
+  'qcloud',
+  '7bu',
+  'https://7bu.top',
+  'smms'
+].map(s => `"${s}"`)
+
+const defaultGravatar = [
+  '404',
+  'mp',
+  'identicon',
+  'monsterid',
+  'wavatar',
+  'retro',
+  'robohash',
+  'blank'
+].map(s => `"${s}"`)
+
 /**
  * 把所有语言翻译放在同一对象下可以减小打包 js 的体积 (~17kb)
  *
@@ -147,6 +236,12 @@ export default {
     '外掛',
     'Plugin'
   ],
+  [S.ACC + '_PRIVACY']: [
+    '隐私',
+    '隱私',
+    '隱私',
+    'Privacy'
+  ],
   [S.ACC + '_SPAM']: [
     '反垃圾',
     '反垃圾',
@@ -220,16 +315,16 @@ export default {
     'Comment placeholder. Use <br> to start a newline. Default: empty.'
   ],
   [S.ACI + '_CORS_ALLOW_ORIGIN']: [
-    'Vercel 安全域名，防止环境被盗用，请注意设置后将无法在本地（localhost）加载评论，默认为空',
-    'Vercel 安全域名，防止環境被盜用，請注意設置後將無法在本地（localhost）加載評論，默認為空',
-    'Vercel 安全域名，防止環境被盜用，請注意設置後將無法在本地（localhost）加載評論，默認為空',
-    'Vercel 安全域名，防止环境被盗用，请注意设置后将无法在本地（localhost）加载评论，默认为空'
+    'Vercel CORS 安全域名，注意：错误设置会导致无法加载，默认为空，格式为 https://blog.example.com',
+    'Vercel CORS 安全域名，注意：错误设置会导致无法加載，默認為空，格式为 https://blog.example.com',
+    'Vercel CORS 安全域名，注意：错误设置会导致无法加載，默認為空，格式为 https://blog.example.com',
+    'Vercel CORS allow origin, note: incorrect settings can cause loading failure. Default: blank, format: https://blog.example.com'
   ],
   [S.ACI + '_DEFAULT_GRAVATAR']: [
-    '默认的头像显示。默认值为 "identicon"，可选： 404、mp、identicon、monsterid、wavatar、retro、robohash、blank',
-    '預設的頭像顯示。預設值為 "identicon"，可選： 404、mp、identicon、monsterid、wavatar、retro、robohash、blank',
-    '預設的頭像顯示。預設值為 "identicon"，可選： 404、mp、identicon、monsterid、wavatar、retro、robohash、blank',
-    'Avatar placeholder. Default:  "identicon". Choose from: 404, mp, identicon, monsterid, wavatar, retro, robohash, blank.'
+    `默认的头像显示。默认值为 "identicon"，可选：${defaultGravatar.join('、')}`,
+    `預設的頭像顯示。預設值為 "identicon"，可選：${defaultGravatar.join('、')}`,
+    `預設的頭像顯示。預設值為 "identicon"，可選：${defaultGravatar.join('、')}`,
+    `Avatar placeholder. Default:  "identicon". Choose from: ${defaultGravatar.join(', ')}`
   ],
   [S.ACI + '_EMOTION_CDN']: [
     '表情 CDN，默认为：https://cdn.jsdelivr.net/gh/imaegoo/emotion/owo.json',
@@ -262,34 +357,40 @@ export default {
     'Enable code highlighting. If your theme conflicts with code highlighting, please set it to false. Default: true.'
   ],
   [S.ACI + '_HIGHLIGHT_THEME']: [
-    '代码高亮主题，可选：default、coy、dark、funky、okaidia、solarizedlight、tomorrow、twilight，访问 https://prismjs.com 可预览主题效果。如果您的主题和代码高亮有冲突，请设为 none。默认：none',
-    '代碼高亮主題，可選：default、coy、dark、funky、okaidia、solarizedlight、tomorrow、twilight，訪問 https://prismjs.com 可預覽主題效果。如果您的主題和代碼高亮有衝突，請設為 none。預設：none',
-    '程式碼高亮主題，可選：default、coy、dark、funky、okaidia、solarizedlight、tomorrow、twilight，訪問 https://prismjs.com 可預覽主題效果。如果您的主題和程式碼高亮有衝突，請設為 none。預設：none',
-    'Code highlighting theme. Select from: default、coy、dark、funky、okaidia、solarizedlight、tomorrow、twilight. Visit https://prismjs.com for preview. If your theme conflicts with code highlighting, please set it to none. Default: none.'
+    `代码高亮主题，可选：${highlightThemes.join('、')}，访问 https://prismjs.com 可预览主题效果。如果您的主题和代码高亮有冲突，请设为 none。默认：none`,
+    `代碼高亮主題，可選：${highlightThemes.join('、')}，訪問 https://prismjs.com 可預覽主題效果。如果您的主題和代碼高亮有衝突，請設為 none。預設：none`,
+    `程式碼高亮主題，可選：${highlightThemes.join('、')}，訪問 https://prismjs.com 可預覽主題效果。如果您的主題和程式碼高亮有衝突，請設為 none。預設：none`,
+    `Code highlighting theme. Select from: ${highlightThemes.join(', ')}. Visit https://prismjs.com for preview. If your theme conflicts with code highlighting, please set it to none. Default: none.`
   ],
   [S.ACI + '_IMAGE_CDN']: [
-    '插入图片所使用的图床，目前支持：7bu、qcloud',
-    '插入圖片所使用的圖床，目前支持：7bu、qcloud',
-    '插入圖片所使用的圖床，目前支援：7bu、qcloud',
-    'The image bed for image uploading. Select from: 7bu、qcloud'
+    `插入图片所使用的图床，目前支持：${imageBedServices.join('、')}`,
+    `插入圖片所使用的圖床，目前支持：${imageBedServices.join('、')}`,
+    `插入圖片所使用的圖床，目前支援：${imageBedServices.join('、')}`,
+    `The image bed for image uploading. Select from: ${imageBedServices.join(', ')}`
   ],
   [S.ACI + '_IMAGE_CDN_TOKEN']: [
-    '7bu 的图床 token',
-    '7bu 的图床 token',
-    '7bu 的图床 token',
-    'The image bed token for 7bu.'
+    '图床 token。qcloud 图床无需设置',
+    '图床 token。qcloud 图床无需设置',
+    '图床 token。qcloud 图床无需设置',
+    'The image bed token. Unnessessary for qcloud'
   ],
   [S.ACI + '_LIMIT_PER_MINUTE']: [
-    '每个 IP 每 10 分钟最多发表多少条评论，默认：0（无限制）',
-    '每個 IP 每 10 分鐘最多發表多少條評論，預設：0（無限制）',
-    '每個 IP 每 10 分鐘最多發表多少條評論，預設：0（無限制）',
-    'How many comments can be posted by each IP every 10 minutes, default: 0 (unlimited).'
+    '单个 IP 发言频率限制（条/10分钟），0 为无限制，默认：10',
+    '單個 IP 發言頻率限制（條/10分鐘），0 為無限制，預設：10',
+    '單個 IP 發言頻率限制（條/10分鐘），0 為無限制，預設：10',
+    'How many comments can be posted by each IP every 10 minutes, 0 is unlimited, default: 10.'
   ],
   [S.ACI + '_LIMIT_PER_MINUTE_ALL']: [
-    '所有 IP 每 10 分钟最多发表多少条评论，默认：0（无限制）',
-    '所有 IP 每 10 分鐘最多發表多少條評論，預設：0（無限制）',
-    '所有 IP 每 10 分鐘最多發表多少條評論，預設：0（無限制）',
-    'How many comments can be posted by all IPs every 10 minutes, default: 0 (unlimited).'
+    '全站发言频率限制（条/10分钟），0 为无限制，默认：10',
+    '全站發言頻率限制（條/10分鐘），0 為無限制，預設：10',
+    '全站發言頻率限制（條/10分鐘），0 為無限制，預設：10',
+    'How many comments can be posted by all IPs every 10 minutes, 0 is unlimited, default: 10.'
+  ],
+  [S.ACI + '_LIMIT_LENGTH']: [
+    '评论长度限制，0 为无限制，默认：500',
+    '評論長度限制，0 為無限制，預設：500',
+    '評論長度限制，0 為無限制，預設：500',
+    'Comment length limitation, 0 is unlimited, default: 500.'
   ],
   [S.ACI + '_MAIL_SUBJECT']: [
     '自定义通知邮件主题，留空则使用默认主题。',
@@ -327,18 +428,6 @@ export default {
     '垃圾評論是否發送通知，默認：true',
     'Notifications for spam comments. Default: true.'
   ],
-  [S.ACI + '_PUSH_PLUS_TOKEN']: [
-    '推送加（pushplus.hxtrip.com）推送的 Token',
-    '推送加（pushplus.hxtrip.com）推送的 Token',
-    '推送加（pushplus.hxtrip.com）推送的 Token',
-    'Push+ (pushplus.hxtrip.com) Token.'
-  ],
-  [S.ACI + '_PUSHDEER_KEY']: [
-    'PushDeer 推送 key',
-    'PushDeer 推送 key',
-    'PushDeer 推送 key',
-    'PushDeer push key.'
-  ],
   [S.ACI + '_QCLOUD_SECRET_ID']: [
     '腾讯云 secret id，用于垃圾评论检测。同时设置腾讯云和 Akismet 时，只有腾讯云会生效。注册：https://twikoo.js.org/cms.html',
     '騰訊雲 secret id，用於垃圾評論檢測。同時設定騰訊雲和 Akismet 時，只有騰訊雲會生效。註冊：https://twikoo.js.org/cms.html',
@@ -351,17 +440,17 @@ export default {
     '騰訊雲 secret key',
     'Tencent Cloud secret key.'
   ],
-  [S.ACI + '_QM_SENDKEY']: [
-    'Qmsg酱（qmsg.zendee.cn）QQ推送的 KEY',
-    'Qmsg醬（qmsg.zendee.cn）QQ推送的 KEY',
-    'Qmsg醬（qmsg.zendee.cn）QQ推送的 KEY',
-    'Qmsg chan (qmsg.zendee.cn) KEY for QQ notification.'
+  [S.ACI + '_PUSHOO_CHANNEL']: [
+    `即时消息推送平台名称，支持：${pushooChannels.join('、')} 等`,
+    `即時消息推送平台名称，支持：${pushooChannels.join('、')} 等`,
+    `即時消息推送平台名称，支援：${pushooChannels.join('、')} 等`,
+    `IM notification push channel. Support: ${pushooChannels.join(', ')}`
   ],
-  [S.ACI + '_QQ_API']: [
-    '私有化QQ推送API部署',
-    '私有化QQ推送API部署',
-    '私有化QQ推送API部署',
-    'Private QQ push API deployment.'
+  [S.ACI + '_PUSHOO_TOKEN']: [
+    '即时消息推送 token。请参考 https://pushoo.js.org 里的详细说明配置',
+    '即時消息推送 token。请参考 https://pushoo.js.org 里的详细说明配置',
+    '即時消息推送 token。请参考 https://pushoo.js.org 里的详细说明配置',
+    'IM notification push token. See https://pushoo.js.org for details'
   ],
   [S.ACI + '_REQUIRED_FIELDS']: [
     '评论必填信息，设为 nick,mail,link 代表全必填，设为 none 代表全选填，默认：nick,mail',
@@ -374,24 +463,6 @@ export default {
     '是否同時通過 IM 和郵件 2 種方式通知博主，預設只通過 IM 通知博主，預設：false',
     '是否同時通過 IM 和郵件 2 種方式通知博主，預設只通過 IM 通知博主，預設：false',
     'Whether to notify admin via IM and email at the same time, the default is to notify admin only via IM. Default: false.'
-  ],
-  [S.ACI + '_SC_SENDKEY']: [
-    'Server酱（sc.ftqq.com）微信推送的 SCKEY',
-    'Server醬（sc.ftqq.com）微信推送的 SCKEY',
-    'Server醬（sc.ftqq.com）微信推送的 SCKEY',
-    'Server chan (sc.ftqq.com) SCKEY for WeChat notification.'
-  ],
-  [S.ACI + '_WECOM_API_URL']: [
-    '自行搭建的企业微信通知 API 接口 URL，免费不限量，参考教程：https://guole.fun/posts/626/',
-    '自行搭建的企業微信通知 API 接口 URL，免費不限量，參考教程：https://guole.fun/posts/626/',
-    '自行搭建的企業微信通知 API 接口 URL，免費不限量，參考教程：https://guole.fun/posts/626/',
-    'Self-built enterprise WeChat notification API interface URL, free unlimited, refer to the tutorial: https://guole.fun/posts/626/'
-  ],
-  [S.ACI + '_DINGTALK_WEBHOOK_URL']: [
-    '钉钉 WebHook API 接口 URL，参考教程：https://blog.ljcbaby.top/article/Twikoo-DingTalk/',
-    '钉钉 WebHooK API 接口 URL，參考教程：https://blog.ljcbaby.top/article/Twikoo-DingTalk/',
-    '钉钉 WebHooK API 接口 URL，參考教程：https://blog.ljcbaby.top/article/Twikoo-DingTalk/',
-    'DingTalk Webhook API interface URL, refer to the tutorial (Chiinese Only): https://blog.ljcbaby.top/article/Twikoo-DingTalk/ '
   ],
   [S.ACI + '_SENDER_EMAIL']: [
     '邮件通知邮箱地址。对于大多数邮箱服务商，SENDER_EMAIL 必须和 SMTP_USER 保持一致，否则无法发送邮件。',
@@ -416,6 +487,18 @@ export default {
     '啟用插入圖片功能，預設為：true',
     '啟用插入圖片功能，預設為：true',
     'Enable picture uploading. Default: true.'
+  ],
+  [S.ACI + '_SHOW_UA']: [
+    '是否显示用户系统和浏览器，默认为：true',
+    '是否顯示使用者系統和瀏覽器，預設為：true',
+    '是否顯示使用者系統和瀏覽器，預設為：true',
+    'Show users\' OS and browser. Default: true.'
+  ],
+  [S.ACI + '_SHOW_REGION']: [
+    '是否显示用户 IP 属地到省，默认为：false',
+    '是否顯示使用者 IP 屬地到省，預設為：false',
+    '是否顯示使用者 IP 屬地到省，預設為：false',
+    'Show users\' IP region (province). Default: false.'
   ],
   [S.ACI + '_SITE_NAME']: [
     '网站名称',
@@ -454,10 +537,10 @@ export default {
     'Custom TLS for SMTP. Enter "true" or "false". If you have configured SMTP_SERVICE, please leave it empty.'
   ],
   [S.ACI + '_SMTP_SERVICE']: [
-    '邮件通知邮箱服务商。支持："126", "163", "1und1", "AOL", "DebugMail", "DynectEmail", "FastMail", "GandiMail", "Gmail", "Godaddy", "GodaddyAsia", "GodaddyEurope", "Hotmail", "Mail.ru", "Maildev", "Mailgun", "Mailjet", "Mailosaur", "Mandrill", "Naver", "OpenMailBox", "Outlook365", "Postmark", "QQ", "QQex", "SES", "SES-EU-WEST-1", "SES-US-EAST-1", "SES-US-WEST-2", "SendCloud", "SendGrid", "SendPulse", "SendinBlue", "Sparkpost", "Yahoo", "Yandex", "Zoho", "hot.ee", "iCloud", "mail.ee", "qiye.aliyun"',
-    '郵件通知郵箱服務商。支持："126", "163", "1und1", "AOL", "DebugMail", "DynectEmail", "FastMail", "GandiMail", "Gmail", "Godaddy", "GodaddyAsia", "GodaddyEurope", "Hotmail", "Mail.ru", "Maildev", "Mailgun", "Mailjet", "Mailosaur", "Mandrill", "Naver", "OpenMailBox", "Outlook365", "Postmark", "QQ", "QQex", "SES", "SES-EU-WEST-1", "SES-US-EAST-1", "SES-US-WEST-2", "SendCloud", "SendGrid", "SendPulse", "SendinBlue", "Sparkpost", "Yahoo", "Yandex", "Zoho", "hot.ee", "iCloud", "mail.ee", "qiye.aliyun"',
-    '郵件通知郵箱服務商。支援："126", "163", "1und1", "AOL", "DebugMail", "DynectEmail", "FastMail", "GandiMail", "Gmail", "Godaddy", "GodaddyAsia", "GodaddyEurope", "Hotmail", "Mail.ru", "Maildev", "Mailgun", "Mailjet", "Mailosaur", "Mandrill", "Naver", "OpenMailBox", "Outlook365", "Postmark", "QQ", "QQex", "SES", "SES-EU-WEST-1", "SES-US-EAST-1", "SES-US-WEST-2", "SendCloud", "SendGrid", "SendPulse", "SendinBlue", "Sparkpost", "Yahoo", "Yandex", "Zoho", "hot.ee", "iCloud", "mail.ee", "qiye.aliyun"',
-    'Email service provider for Email notification. Support: "126", "163", "1und1", "AOL", "DebugMail", "DynectEmail", "FastMail", "GandiMail", "Gmail", "Godaddy", "GodaddyAsia", "GodaddyEurope", "Hotmail", "Mail.ru", "Maildev", "Mailgun", "Mailjet", "Mailosaur", "Mandrill", "Naver", "OpenMailBox", "Outlook365", "Postmark", "QQ", "QQex", "SES", "SES-EU-WEST-1", "SES-US-EAST-1", "SES-US-WEST-2", "SendCloud", "SendGrid", "SendPulse", "SendinBlue", "Sparkpost", "Yahoo", "Yandex", "Zoho", "hot.ee", "iCloud", "mail.ee", "qiye.aliyun"'
+    `邮件通知邮箱服务商。支持：${smtpServices.join('、')}`,
+    `郵件通知郵箱服務商。支持：${smtpServices.join('、')}`,
+    `郵件通知郵箱服務商。支援：${smtpServices.join('、')}`,
+    `Email service provider for Email notification. Support: ${smtpServices.join(', ')}`
   ],
   [S.ACI + '_SMTP_USER']: [
     '邮件通知邮箱用户名。',

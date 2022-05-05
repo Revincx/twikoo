@@ -8,8 +8,10 @@
             type="textarea"
             ref="textarea"
             v-model="comment"
+            show-word-limit
             :placeholder="commentPlaceholder"
             :autosize="{ minRows: 3 }"
+            :maxlength="maxLength"
             @input="onCommentInput"
             @keyup.enter.native="onEnterKeyUp($event)" />
       </div>
@@ -51,7 +53,7 @@ import iconImage from '@fortawesome/fontawesome-free/svgs/regular/image.svg'
 import Clickoutside from 'element-ui/src/utils/clickoutside'
 import TkAvatar from './TkAvatar.vue'
 import TkMetaInput from './TkMetaInput.vue'
-import { marked, call, logger, renderLinks, renderMath, renderCode, initOwoEmotion, initMarkedOwo, t, getUrl } from '../../js/utils'
+import { marked, call, logger, renderLinks, renderMath, renderCode, initOwoEmotion, initMarkedOwo, t, getUrl, blobToDataURL } from '../../js/utils'
 import OwO from '../../lib/owo'
 
 const imageTypes = [
@@ -109,6 +111,11 @@ export default {
       let ph = this.$twikoo.placeholder || this.config.COMMENT_PLACEHOLDER || ''
       ph = ph.replace(/<br>/g, '\n')
       return ph
+    },
+    maxLength () {
+      let limitLength = parseInt(this.config.LIMIT_LENGTH)
+      if (Number.isNaN(limitLength)) limitLength = 500
+      return limitLength
     }
   },
   methods: {
@@ -244,10 +251,11 @@ export default {
       const fileIndex = `${Date.now()}-${userId}`
       const fileName = nameSplit.join('.')
       this.paste(this.getImagePlaceholder(fileIndex, fileType))
-      if (this.config.IMAGE_CDN === '7bu' && this.config.IMAGE_CDN_TOKEN) {
-        this.uploadPhotoToThirdParty(fileIndex, fileName, fileType, photo, 'https://7bu.top/api/upload')
-      } else if (this.$tcb) {
+      const imageCdn = this.config.IMAGE_CDN
+      if (this.$tcb && (!imageCdn || imageCdn === 'qcloud')) {
         this.uploadPhotoToQcloud(fileIndex, fileName, fileType, photo)
+      } else if (imageCdn) {
+        this.uploadPhotoToThirdParty(fileIndex, fileName, fileType, photo)
       } else {
         this.uploadFailed(fileIndex, fileType, '未配置图片上传服务')
       }
@@ -275,37 +283,29 @@ export default {
         this.uploadFailed(fileIndex, fileType, e.message)
       }
     },
-    uploadPhotoToThirdParty (fileIndex, fileName, fileType, photo, url) {
-      return new Promise((resolve) => {
-        try {
-          const formData = new FormData()
-          const xhr = new XMLHttpRequest()
-          formData.append('image', photo)
-          xhr.onreadystatechange = () => {
-            if (xhr.readyState === 4) {
-              if (xhr.status === 200) {
-                const uploadResult = JSON.parse(xhr.responseText)
-                this.uploadCompleted(fileIndex, fileName, fileType, uploadResult.data.url)
-                resolve()
-              } else {
-                this.uploadFailed(fileIndex, fileType, xhr.status)
-              }
-            }
-          }
-          xhr.open('POST', url)
-          xhr.setRequestHeader('token', this.config.IMAGE_CDN_TOKEN)
-          xhr.send(formData)
-        } catch (e) {
-          console.error(e)
-          this.uploadFailed(fileIndex, fileType, e.message)
+    async uploadPhotoToThirdParty (fileIndex, fileName, fileType, photo) {
+      try {
+        const { result: uploadResult } = await call(this.$tcb, 'UPLOAD_IMAGE', {
+          fileName: `${fileIndex}.${fileType}`,
+          photo: await blobToDataURL(photo)
+        })
+        if (uploadResult.data) {
+          this.uploadCompleted(fileIndex, fileName, fileType, uploadResult.data.url)
+        } else {
+          this.uploadFailed(fileIndex, fileType, uploadResult.err)
         }
-      })
+      } catch (e) {
+        console.error(e)
+        this.uploadFailed(fileIndex, fileType, e.message)
+      }
     },
     uploadCompleted (fileIndex, fileName, fileType, fileUrl) {
       this.comment = this.comment.replace(this.getImagePlaceholder(fileIndex, fileType), `![${fileName}](${fileUrl})`)
+      this.$refs.inputFile.value = ''
     },
     uploadFailed (fileIndex, fileType, reason) {
       this.comment = this.comment.replace(this.getImagePlaceholder(fileIndex, fileType), `_上传失败：${reason}_`)
+      this.$refs.inputFile.value = ''
     },
     paste (text) {
       if (document.selection) {
