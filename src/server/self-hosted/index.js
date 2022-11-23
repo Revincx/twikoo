@@ -8,6 +8,7 @@ const { version: VERSION } = require('./package.json')
 const fs = require('fs')
 const path = require('path')
 const Loki = require('lokijs')
+const getUserIP = require('get-user-ip')
 const Lfsa = require('lokijs/src/loki-fs-structured-adapter')
 const { v4: uuidv4 } = require('uuid') // 用户 id 生成
 const {
@@ -23,6 +24,7 @@ const {
   getUrlsQuery,
   parseComment,
   parseCommentForAdmin,
+  getMailMd5,
   getAvatar,
   isQQ,
   addQQMailSuffix,
@@ -789,7 +791,7 @@ async function getRecentComments (event) {
         url: comment.url,
         nick: comment.nick,
         avatar: getAvatar(comment, config),
-        mailMd5: comment.mailMd5 || md5(comment.mail),
+        mailMd5: getMailMd5(comment),
         link: comment.link,
         comment: comment.comment,
         commentText: $(comment.comment).text(),
@@ -893,7 +895,14 @@ async function createCollections () {
 }
 
 function getIp (request) {
-  return request.headers['x-forwarded-for'] || request.socket.remoteAddress || ''
+  try {
+    const { TWIKOO_IP_HEADERS } = process.env
+    const headers = TWIKOO_IP_HEADERS ? JSON.parse(TWIKOO_IP_HEADERS) : []
+    return getUserIP(request, headers)
+  } catch (e) {
+    console.error('获取 IP 错误信息：', e)
+  }
+  return getUserIP(request)
 }
 
 function clearRequestTimes () {
