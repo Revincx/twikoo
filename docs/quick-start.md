@@ -47,7 +47,7 @@ exports.main = require('twikoo-func').main
 8. 创建完成后，点击“twikoo"进入云函数详情页，进入“函数代码”标签，点击“文件 - 新建文件”，输入 `package.json`，回车
 9. 复制以下代码、粘贴到代码框中，点击“保存并安装依赖”
 ``` json
-{ "dependencies": { "twikoo-func": "1.6.10" } }
+{ "dependencies": { "twikoo-func": "1.6.16" } }
 ```
 
 ### 命令行部署
@@ -114,9 +114,10 @@ Railway 部署的环境需配合 1.4.0 以上版本的 twikoo.js 使用
 1. 在 [Railway](https://railway.app/dashboard) 申请并登录账号，点击 New Project - Provision MongoDB，名称随意
 2. 打开 [imaegoo/twikoo-zeabur](https://github.com/imaegoo/twikoo-zeabur) 点击 fork 将仓库 fork 到自己的账号下
 3. 回到 Railway 点击 New - GitHub Repo - Configure GitHub App - 授权 GitHub - 选择刚才 fork 的仓库，等待部署完成
-4. 点开环境卡片 - Variables - New Variable，左边输入 `PORT` 右边输入 `8080` 然后点 Add。
-5. 点开环境卡片 - Settings - Environment - Domains，绑定一个域名（例如 `mytwikoo.up.railway.app`）
-6. 到博客配置文件中配置 envId 为 `https://` 加域名（例如 `https://mytwikoo.up.railway.app`）
+4. 点开环境卡片 - Variables - New Variable，左边输入 `PORT` 右边输入 `8080` 然后点 Add
+5. 同样地，添加 MongoDB 相关环境变量 - New Variable - Add Reference - MONGO* - Add，重复步骤以添加 `MONGOHOST`、`MONGOPASSWORD`、`MONGOPORT`、`MONGOUSER` 和 `MONGO_URL` 环境变量。
+6. 点开环境卡片 - Settings - Environment - Domains，绑定一个域名（例如 `mytwikoo.up.railway.app`）
+7. 到博客配置文件中配置 envId 为 `https://` 加域名（例如 `https://mytwikoo.up.railway.app`）
 
 ### Zeabur 部署
 
@@ -244,7 +245,7 @@ twikoo:
 
 ``` html
 <div id="tcomment"></div>
-<script src="https://cdn.staticfile.org/twikoo/1.6.10/twikoo.all.min.js"></script>
+<script src="https://cdn.staticfile.org/twikoo/1.6.16/twikoo.all.min.js"></script>
 <script>
 twikoo.init({
   envId: '您的环境id', // 腾讯云环境填 envId；Vercel 环境填地址（https://xxx.vercel.app）
@@ -262,10 +263,10 @@ twikoo.init({
 
 如果遇到默认 CDN 加载速度缓慢，可更换其他 CDN 镜像。以下为可供选择的公共 CDN，其中一些 CDN 可能需要数天时间同步最新版本：
 
-* `https://cdn.staticfile.org/twikoo/1.6.10/twikoo.all.min.js`
-* `https://lib.baomitu.com/twikoo/1.6.10/twikoo.all.min.js`
-* `https://cdn.bootcdn.net/ajax/libs/twikoo/1.6.10/twikoo.all.min.js`
-* `https://cdn.jsdelivr.net/npm/twikoo@1.6.10/dist/twikoo.all.min.js`
+* `https://cdn.staticfile.org/twikoo/1.6.16/twikoo.all.min.js`
+* `https://lib.baomitu.com/twikoo/1.6.16/twikoo.all.min.js`
+* `https://cdn.bootcdn.net/ajax/libs/twikoo/1.6.16/twikoo.all.min.js`
+* `https://cdn.jsdelivr.net/npm/twikoo@1.6.16/dist/twikoo.all.min.js`
 
 ## 开启管理面板（腾讯云环境）
 

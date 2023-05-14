@@ -13,8 +13,7 @@ const Lfsa = require('lokijs/src/loki-fs-structured-adapter')
 const { v4: uuidv4 } = require('uuid') // 用户 id 生成
 const {
   $,
-  JSDOM,
-  createDOMPurify,
+  getDomPurify,
   md5,
   xml2js
 } = require('twikoo-func/utils/lib')
@@ -40,15 +39,14 @@ const {
   commentImportValine,
   commentImportDisqus,
   commentImportArtalk,
+  commentImportArtalk2,
   commentImportTwikoo
 } = require('twikoo-func/utils/import')
 const { postCheckSpam } = require('twikoo-func/utils/spam')
 const { sendNotice, emailTest } = require('twikoo-func/utils/notify')
 const { uploadImage } = require('twikoo-func/utils/image')
 
-// 初始化反 XSS
-const window = new JSDOM('').window
-const DOMPurify = createDOMPurify(window)
+const DOMPurify = getDomPurify()
 
 // 常量 / constants
 const { RES_CODE, MAX_REQUEST_TIMES } = require('twikoo-func/utils/constants')
@@ -135,6 +133,9 @@ module.exports = async (request, response) => {
       case 'UPLOAD_IMAGE': // >= 1.5.0
         res = await uploadImage(event, config)
         break
+      case 'COMMENT_EXPORT_FOR_ADMIN': // >= 1.6.13
+        res = await commentExportForAdmin(event)
+        break
       default:
         if (event.event) {
           res.code = RES_CODE.EVENT_NOT_EXIST
@@ -174,13 +175,22 @@ function allowCors (request, response) {
 
 function getAllowedOrigin (request) {
   const localhostRegex = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d{1,5})?$/
-  if (localhostRegex.test(request.headers.origin)) {
-    return request.headers.origin
-  } else if (config.CORS_ALLOW_ORIGIN) {
-    // 许多用户设置安全域名时，喜欢带结尾的 "/"，必须处理掉
-    return config.CORS_ALLOW_ORIGIN.replace(/\/$/, '')
+  if (localhostRegex.test(request.headers.origin)) { // 判断是否为本地主机，如是则允许跨域
+    return request.headers.origin // Allow
+  } else if (config.CORS_ALLOW_ORIGIN) { // 如设置了安全域名则检查
+    // 适配多条 CORS 规则
+    // 以逗号分隔 CORS
+    const corsList = config.CORS_ALLOW_ORIGIN.split(',')
+    // 遍历 CORS 列表
+    for (let i = 0; i < corsList.length; i++) {
+      const cors = corsList[i].replace(/\/$/, '') // 获取当前 CORS 并去除末尾的斜杠
+      if (cors === request.headers.origin) {
+        return request.headers.origin // Allow
+      }
+    }
+    return '' // 不在安全域名列表中则禁止跨域
   } else {
-    return request.headers.origin
+    return request.headers.origin // 未设置安全域名直接 Allow
   }
 }
 
@@ -467,6 +477,11 @@ async function commentImportForAdmin (event) {
           comments = await commentImportArtalk(artalkDb, log)
           break
         }
+        case 'artalk2': {
+          const artalkDb = await readFile(event.file, 'json', log)
+          comments = await commentImportArtalk2(artalkDb, log)
+          break
+        }
         case 'twikoo': {
           const twikooDb = await readFile(event.file, 'json', log)
           comments = await commentImportTwikoo(twikooDb, log)
@@ -483,6 +498,25 @@ async function commentImportForAdmin (event) {
     res.code = RES_CODE.SUCCESS
     res.log = logText
     console.log(logText)
+  } else {
+    res.code = RES_CODE.NEED_LOGIN
+    res.message = '请先登录'
+  }
+  return res
+}
+
+async function commentExportForAdmin (event) {
+  const res = {}
+  const isAdminUser = isAdmin(event.accessToken)
+  if (isAdminUser) {
+    const collection = event.collection || 'comment'
+    const data = db
+      .getCollection(collection)
+      .chain()
+      .find({})
+      .data()
+    res.code = RES_CODE.SUCCESS
+    res.data = data
   } else {
     res.code = RES_CODE.NEED_LOGIN
     res.message = '请先登录'
