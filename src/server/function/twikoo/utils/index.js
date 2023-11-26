@@ -2,6 +2,7 @@ const { URL } = require('url')
 const { axios, bowser, ipToRegion, md5 } = require('./lib')
 const { RES_CODE } = require('./constants')
 const ipRegionSearcher = ipToRegion.create() // 初始化 IP 属地
+const logger = require('./logger')
 
 const fn = {
   // 获取 Twikoo 云函数版本
@@ -44,11 +45,11 @@ const fn = {
     if (config.SHOW_UA !== 'false') {
       try {
         const ua = bowser.getParser(comment.ua)
-        const os = ua.getOS()
+        const os = fn.fixOS(ua.getOS())
         displayOs = [os.name, os.versionName ? os.versionName : os.version].join(' ')
         displayBrowser = [ua.getBrowserName(), ua.getBrowserVersion()].join(' ')
       } catch (e) {
-        console.log('bowser 错误：', e)
+        logger.warn('bowser 错误：', e)
       }
     }
     const showRegion = !!config.SHOW_REGION && config.SHOW_REGION !== 'false'
@@ -75,6 +76,32 @@ const fn = {
       updated: comment.updated
     }
   },
+  fixOS (os) {
+    if (!os.versionName) {
+      // fix version name of Win 11 & macOS ^11 & Android ^10
+      if (os.name === 'Windows' && os.version === 'NT 11.0') {
+        os.versionName = '11'
+      } else if (os.name === 'macOS') {
+        const majorPlatformVersion = os.version.split('.')[0]
+        os.versionName = {
+          11: 'Big Sur',
+          12: 'Monterey',
+          13: 'Ventura',
+          14: 'Sonoma'
+        }[majorPlatformVersion]
+      } else if (os.name === 'Android') {
+        const majorPlatformVersion = os.version.split('.')[0]
+        os.versionName = {
+          10: 'Quince Tart',
+          11: 'Red Velvet Cake',
+          12: 'Snow Cone',
+          13: 'Tiramisu',
+          14: 'Upside Down Cake'
+        }[majorPlatformVersion]
+      }
+    }
+    return os
+  },
   // 获取回复人昵称 / Get replied user nick name
   ruser (pid, comments = []) {
     const comment = comments.find((item) => item._id === pid)
@@ -90,17 +117,19 @@ const fn = {
     try {
       // 将 IPv6 格式的 IPv4 地址转换为 IPv4 格式
       ip = ip.replace(/^::ffff:/, '')
+      // Zeabur 返回的地址带端口号，去掉端口号。TODO: 不知道该怎么去掉 IPv6 地址后面的端口号
+      ip = ip.replace(/:[0-9]*$/, '')
       const { region } = ipRegionSearcher.binarySearchSync(ip)
       const [country,, province, city, isp] = region.split('|')
       // 有省显示省，没有省显示国家
-      const area = province.trim() ? province : country
+      const area = province.trim() && province !== '0' ? province : country
       if (detail) {
         return area === city ? [city, isp].join(' ') : [area, city, isp].join(' ')
       } else {
         return area.replace(/(省|市)$/, '')
       }
     } catch (e) {
-      console.error('IP 属地查询失败：', e.message)
+      logger.warn('IP 属地查询失败：', e.message, ip)
       return ''
     }
   },
@@ -118,12 +147,19 @@ const fn = {
       return url
     }
   },
+  normalizeMail (mail) {
+    return String(mail).trim().toLowerCase()
+  },
+  equalsMail (mail1, mail2) {
+    if (!mail1 || !mail2) return false
+    return fn.normalizeMail(mail1) === fn.normalizeMail(mail2)
+  },
   getMailMd5 (comment) {
     if (comment.mailMd5) {
       return comment.mailMd5
     }
     if (comment.mail) {
-      return md5(comment.mail)
+      return md5(fn.normalizeMail(comment.mail))
     }
     return md5(comment.nick)
   },
@@ -151,15 +187,10 @@ const fn = {
   async getQQAvatar (qq) {
     try {
       const qqNum = qq.replace(/@qq.com/ig, '')
-      const result = await axios.get(`https://ptlogin2.qq.com/getface?imgtype=4&uin=${qqNum}`)
-      if (result && result.data) {
-        const start = result.data.indexOf('http')
-        const end = result.data.indexOf('"', start)
-        if (start === -1 || end === -1) return null
-        return result.data.substring(start, end)
-      }
+      const result = await axios.get(`https://aq.qq.com/cn2/get_img/get_face?img_type=3&uin=${qqNum}`)
+      return result.data?.url || null
     } catch (e) {
-      console.error('获取 QQ 头像失败：', e)
+      logger.warn('获取 QQ 头像失败：', e)
     }
   },
   // 判断是否存在管理员密码
@@ -181,13 +212,16 @@ const fn = {
     }
     if (config.AKISMET_KEY === 'MANUAL_REVIEW') {
       // 人工审核
-      console.log('已使用人工审核模式，评论审核后才会发表~')
+      logger.info('已使用人工审核模式，评论审核后才会发表~')
       return true
     } else if (config.FORBIDDEN_WORDS) {
       // 违禁词检测
+      const commentLowerCase = comment.toLowerCase()
+      const nickLowerCase = nick.toLowerCase()
       for (const forbiddenWord of config.FORBIDDEN_WORDS.split(',')) {
-        if (comment.indexOf(forbiddenWord.trim()) !== -1 || nick.indexOf(forbiddenWord.trim()) !== -1) {
-          console.log('包含违禁词，直接标记为垃圾评论~')
+        const forbiddenWordLowerCase = forbiddenWord.trim().toLowerCase()
+        if (commentLowerCase.indexOf(forbiddenWordLowerCase) !== -1 || nickLowerCase.indexOf(forbiddenWordLowerCase) !== -1) {
+          logger.warn('包含违禁词，直接标记为垃圾评论~')
           return true
         }
       }
@@ -211,6 +245,7 @@ const fn = {
         SHOW_EMOTION: config.SHOW_EMOTION || 'true',
         EMOTION_CDN: config.EMOTION_CDN,
         COMMENT_PLACEHOLDER: config.COMMENT_PLACEHOLDER,
+        DISPLAYED_FIELDS: config.DISPLAYED_FIELDS,
         REQUIRED_FIELDS: config.REQUIRED_FIELDS,
         HIDE_ADMIN_CRYPT: config.HIDE_ADMIN_CRYPT,
         HIGHLIGHT: config.HIGHLIGHT || 'true',

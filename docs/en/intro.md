@@ -2,14 +2,30 @@
 
 ----
 
-[![](https://img.shields.io/npm/v/twikoo)](https://www.npmjs.com/package/twikoo)
-[![](https://img.shields.io/bundlephobia/minzip/twikoo)](https://bundlephobia.com/result?p=twikoo)
-[![](https://img.shields.io/npm/dt/twikoo)](https://www.npmjs.com/package/twikoo)
-[![](https://data.jsdelivr.com/v1/package/npm/twikoo/badge)](https://www.jsdelivr.com/package/npm/twikoo)
-[![](https://img.shields.io/npm/l/twikoo)](https://github.com/imaegoo/twikoo/blob/main/LICENSE)
+<style>
+  .shields {
+    display: inline-block;
+  }
+</style>
+
+<a href="https://www.npmjs.com/package/twikoo">
+  <img class="shields" src="https://img.shields.io/npm/v/twikoo" />&nbsp;
+</a>
+<a href="https://bundlephobia.com/result?p=twikoo">
+  <img class="shields" src="https://img.shields.io/bundlephobia/minzip/twikoo" />&nbsp;
+</a>
+<a href="https://www.npmjs.com/package/twikoo">
+  <img class="shields" src="https://img.shields.io/npm/dt/twikoo" />&nbsp;
+</a>
+<a href="https://www.jsdelivr.com/package/npm/twikoo">
+  <img class="shields" src="https://data.jsdelivr.com/v1/package/npm/twikoo/badge" />&nbsp;
+</a>
+<a href="https://github.com/twikoojs/twikoo/blob/main/LICENSE">
+  <img class="shields" src="https://img.shields.io/npm/l/twikoo" />
+</a>
 
 A **simple**, **safe**, **free** comment system.  
-[简体中文](/) | **English**  
+[简体中文](/intro) | **English**  
 
 **This document is for American English. This document has many bugs.**
 
@@ -109,7 +125,7 @@ Icon design：[Maemo Lee](https://www.maemo.cc)
 
 ## Release notes & plans
 
-[Update logs](https://github.com/imaegoo/twikoo/releases) & [Development Plan](https://github.com/imaegoo/twikoo/projects/2)
+[Update logs](https://github.com/twikoojs/twikoo/releases) & [Development Plan](https://github.com/twikoojs/twikoo/projects/2)
 
 ##  Development
 
@@ -125,7 +141,7 @@ If your changes can help more people, feel free to submit a Pull Request!
 
 ## I18N
 
-Support Simplified Chinese, Traditional Chinese, English. [translate Pull Request](https://github.com/imaegoo/twikoo/tree/main/src/client/utils/i18n).
+Support Simplified Chinese, Traditional Chinese, English. [translate Pull Request](https://github.com/twikoojs/twikoo/tree/main/src/client/utils/i18n).
 
 ## License
 

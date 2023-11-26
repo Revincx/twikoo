@@ -4,7 +4,7 @@
       <a class="tk-admin-close" @click="onClose" v-html="iconClose"></a>
       <div class="tk-login-title" v-if="needUpdate">
         <div>{{ t('ADMIN_NEED_UPDATE') }}</div>
-        <a href="https://twikoo.js.org/quick-start.html" target="_blank">https://twikoo.js.org/quick-start.html</a>
+        <a href="https://twikoo.js.org/update.html" target="_blank">https://twikoo.js.org/update.html</a>
       </div>
       <div v-if="!needUpdate">
         <div class="tk-login" v-if="!isLogin && isSetPassword">
@@ -275,6 +275,8 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  padding: 0 2rem;
 }
 .tk-login-title {
   color: #ffffff;

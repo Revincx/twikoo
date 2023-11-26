@@ -23,6 +23,8 @@ const {
   getUrlsQuery,
   parseComment,
   parseCommentForAdmin,
+  normalizeMail,
+  equalsMail,
   getMailMd5,
   getAvatar,
   isQQ,
@@ -45,6 +47,7 @@ const {
 const { postCheckSpam } = require('twikoo-func/utils/spam')
 const { sendNotice, emailTest } = require('twikoo-func/utils/notify')
 const { uploadImage } = require('twikoo-func/utils/image')
+const logger = require('twikoo-func/utils/logger')
 
 const DOMPurify = getDomPurify()
 
@@ -62,9 +65,9 @@ connectToDatabase()
 module.exports = async (request, response) => {
   let accessToken
   const event = request.body || {}
-  console.log('请求 IP：', getIp(request))
-  console.log('请求函数：', event.event)
-  console.log('请求参数：', event)
+  logger.log('请求 IP：', getIp(request))
+  logger.log('请求函数：', event.event)
+  logger.log('请求参数：', event)
   let res = {}
   try {
     protect(request)
@@ -142,21 +145,21 @@ module.exports = async (request, response) => {
           res.message = '请更新 Twikoo 云函数至最新版本'
         } else {
           res.code = RES_CODE.NO_PARAM
-          res.message = 'Twikoo 云函数运行正常，请参考 https://twikoo.js.org/quick-start.html#%E5%89%8D%E7%AB%AF%E9%83%A8%E7%BD%B2 完成前端的配置'
+          res.message = 'Twikoo 云函数运行正常，请参考 https://twikoo.js.org/frontend.html 完成前端的配置'
           res.version = VERSION
         }
     }
   } catch (e) {
-    console.error('Twikoo 遇到错误，请参考以下错误信息。如有疑问，请反馈至 https://github.com/imaegoo/twikoo/issues')
-    console.error('请求参数：', event)
-    console.error('错误信息：', e)
+    logger.error('Twikoo 遇到错误，请参考以下错误信息。如有疑问，请反馈至 https://github.com/twikoojs/twikoo/issues')
+    logger.error('请求参数：', event)
+    logger.error('错误信息：', e)
     res.code = RES_CODE.FAIL
     res.message = e.message
   }
   if (!res.code && !request.body.accessToken) {
     res.accessToken = accessToken
   }
-  console.log('请求返回：', res)
+  logger.log('请求返回：', res)
   response.status(200).json(res)
 }
 
@@ -210,9 +213,9 @@ async function connectToDatabase () {
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir)
   }
-  console.log(`Twikoo database stored at ${dataDir}`)
+  logger.info(`Twikoo database stored at ${dataDir}`)
   await new Promise((resolve) => {
-    console.log('Connecting to database...')
+    logger.info('Connecting to database...')
     db = new Loki(path.resolve(dataDir, './db.json'), {
       adapter: new Lfsa(),
       autoload: true,
@@ -222,7 +225,7 @@ async function connectToDatabase () {
     })
   })
   await createCollections()
-  console.log('Connected to database')
+  logger.info('Connected to database')
   return db
 }
 
@@ -497,7 +500,7 @@ async function commentImportForAdmin (event) {
     }
     res.code = RES_CODE.SUCCESS
     res.log = logText
-    console.log(logText)
+    logger.info(logText)
   } else {
     res.code = RES_CODE.NEED_LOGIN
     res.message = '请先登录'
@@ -514,7 +517,7 @@ async function commentExportForAdmin (event) {
       .getCollection(collection)
       .chain()
       .find({})
-      .data()
+      .data({ removeMeta: true })
     res.code = RES_CODE.SUCCESS
     res.data = data
   } else {
@@ -606,7 +609,7 @@ async function commentSubmit (event, request) {
   const comment = await save(data)
   res.id = comment.id
   // 异步垃圾检测、发送评论通知
-  console.log('开始异步垃圾检测、发送评论通知')
+  logger.log('开始异步垃圾检测、发送评论通知')
   // 私有部署支持直接异步调用
   postSubmit(comment)
   return res
@@ -631,14 +634,14 @@ async function getParentComment (currentComment) {
 // 异步垃圾检测、发送评论通知
 async function postSubmit (comment) {
   try {
-    console.log('POST_SUBMIT')
+    logger.log('POST_SUBMIT')
     // 垃圾检测
     const isSpam = await postCheckSpam(comment, config)
     await saveSpamCheckResult(comment, isSpam)
     // 发送通知
     await sendNotice(comment, config, getParentComment)
   } catch (e) {
-    console.log('POST_SUBMIT 失败', e)
+    logger.warn('POST_SUBMIT 失败', e)
   }
 }
 
@@ -646,14 +649,14 @@ async function postSubmit (comment) {
 async function parse (comment, request) {
   const timestamp = Date.now()
   const isAdminUser = isAdmin(request.body.accessToken)
-  const isBloggerMail = comment.mail && comment.mail === config.BLOGGER_EMAIL
+  const isBloggerMail = equalsMail(comment.mail, config.BLOGGER_EMAIL)
   if (isBloggerMail && !isAdminUser) throw new Error('请先登录管理面板，再使用博主身份发送评论')
   const commentDo = {
     _id: uuidv4().replace(/-/g, ''),
     uid: request.body.accessToken,
     nick: comment.nick ? comment.nick : '匿名',
     mail: comment.mail ? comment.mail : '',
-    mailMd5: comment.mail ? md5(comment.mail) : '',
+    mailMd5: comment.mail ? md5(normalizeMail(comment.mail)) : '',
     link: comment.link ? comment.link : '',
     ua: comment.ua,
     ip: getIp(request),
@@ -669,7 +672,7 @@ async function parse (comment, request) {
   }
   if (isQQ(comment.mail)) {
     commentDo.mail = addQQMailSuffix(comment.mail)
-    commentDo.mailMd5 = md5(commentDo.mail)
+    commentDo.mailMd5 = md5(normalizeMail(commentDo.mail))
     commentDo.avatar = await getQQAvatar(comment.mail)
   }
   return commentDo
@@ -860,10 +863,10 @@ function protect (request) {
   const ip = getIp(request)
   requestTimes[ip] = (requestTimes[ip] || 0) + 1
   if (requestTimes[ip] > MAX_REQUEST_TIMES) {
-    console.log(`${ip} 当前请求次数为 ${requestTimes[ip]}，已超过最大请求次数`)
+    logger.warn(`${ip} 当前请求次数为 ${requestTimes[ip]}，已超过最大请求次数`)
     throw new Error('Too Many Requests')
   } else {
-    console.log(`${ip} 当前请求次数为 ${requestTimes[ip]}`)
+    logger.log(`${ip} 当前请求次数为 ${requestTimes[ip]}`)
   }
 }
 
@@ -876,7 +879,7 @@ async function readConfig () {
     config = res || {}
     return config
   } catch (e) {
-    console.error('读取配置失败：', e)
+    logger.error('读取配置失败：', e)
     await createCollections()
     config = {}
     return config
@@ -886,7 +889,7 @@ async function readConfig () {
 // 写入配置
 async function writeConfig (newConfig) {
   if (!Object.keys(newConfig).length) return 0
-  console.log('写入配置：', newConfig)
+  logger.info('写入配置：', newConfig)
   try {
     const oldConfig = db
       .getCollection('config')
@@ -906,7 +909,7 @@ async function writeConfig (newConfig) {
     config = null
     return 1
   } catch (e) {
-    console.error('写入配置失败：', e)
+    logger.error('写入配置失败：', e)
     return null
   }
 }
@@ -934,7 +937,7 @@ function getIp (request) {
     const headers = TWIKOO_IP_HEADERS ? JSON.parse(TWIKOO_IP_HEADERS) : []
     return getUserIP(request, headers)
   } catch (e) {
-    console.error('获取 IP 错误信息：', e)
+    logger.error('获取 IP 错误信息：', e)
   }
   return getUserIP(request)
 }

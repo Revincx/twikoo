@@ -53,7 +53,7 @@ import iconImage from '@fortawesome/fontawesome-free/svgs/regular/image.svg'
 import Clickoutside from 'element-ui/src/utils/clickoutside'
 import TkAvatar from './TkAvatar.vue'
 import TkMetaInput from './TkMetaInput.vue'
-import { marked, call, logger, renderLinks, renderMath, renderCode, initOwoEmotion, initMarkedOwo, t, getUrl, blobToDataURL } from '../../utils'
+import { marked, call, logger, renderLinks, renderMath, renderCode, initOwoEmotions, initMarkedOwo, t, getUrl, getHref, blobToDataURL, getUserAgent } from '../../utils'
 import OwO from '../../lib/owo'
 
 const imageTypes = [
@@ -132,7 +132,7 @@ export default {
     },
     async initOwo () {
       if (this.config.SHOW_EMOTION === 'true') {
-        const odata = await initOwoEmotion(this.config.EMOTION_CDN || 'https://owo.imaegoo.com/owo.json')
+        const odata = await initOwoEmotions(this.config.EMOTION_CDN || 'https://owo.imaegoo.com/owo.json')
         this.owo = new OwO({
           logo: iconEmotion, // OwO button text, default: `OωO表情`
           container: this.$refs.owo, // OwO container, default: `document.getElementsByClassName('OwO')[0]`
@@ -179,14 +179,13 @@ export default {
         if (this.comment.match(new RegExp(`!\\[${t('IMAGE_UPLOAD_PLACEHOLDER')}.+\\]\\(\\)`))) {
           throw new Error(t('IMAGE_UPLOAD_PLEASE_WAIT'))
         }
-        const url = getUrl(this.$twikoo.path)
         const comment = {
           nick: this.nick,
           mail: this.mail,
           link: this.link,
-          ua: navigator.userAgent,
-          url,
-          href: window.location.href,
+          ua: await getUserAgent(),
+          url: getUrl(this.$twikoo.path),
+          href: getHref(this.$twikoo.href),
           comment: marked(this.comment),
           pid: this.pid ? this.pid : this.replyId,
           rid: this.replyId
@@ -310,6 +309,7 @@ export default {
       }
     },
     uploadCompleted (fileIndex, fileName, fileType, fileUrl) {
+      fileName = fileName.replace(/[[\]]/g, '_')
       this.comment = this.comment.replace(this.getImagePlaceholder(fileIndex, fileType), `![${fileName}](${fileUrl})`)
       this.$refs.inputFile.value = ''
     },

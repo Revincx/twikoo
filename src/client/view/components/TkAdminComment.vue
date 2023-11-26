@@ -3,7 +3,7 @@
     <div class="tk-admin-warn" v-if="clientVersion !== serverVersion">
       <span>{{ t('ADMIN_CLIENT_VERSION') }}{{ clientVersion }}，</span>
       <span>{{ t('ADMIN_SERVER_VERSION') }}{{ serverVersion }}，</span>
-      <span>请参考&nbsp;<a href="https://twikoo.js.org/quick-start.html#%E7%89%88%E6%9C%AC%E6%9B%B4%E6%96%B0" target="_blank">版本更新</a>&nbsp;进行升级</span>
+      <span>请参考&nbsp;<a href="https://twikoo.js.org/update.html" target="_blank">版本更新</a>&nbsp;进行升级</span>
     </div>
     <div class="tk-admin-comment-filter">
       <el-input
@@ -28,7 +28,7 @@
           <span v-if="comment.mail">(<a :href="`mailto:${comment.mail}`">{{ comment.mail }}</a>)&nbsp;</span>
           <span v-if="comment.isSpam">{{ t('ADMIN_COMMENT_IS_SPAM_SUFFIX') }}&nbsp;</span>
           <span class="tk-time">{{ displayCreated(comment) }}&nbsp;</span>
-          <span>{{ comment.ipRegion }}</span>
+          <span :title="comment.ua">{{ comment.ipRegion }}</span>
         </div>
         <div class="tk-content" v-html="comment.comment" ref="comments"></div>
         <div class="tk-admin-actions">

@@ -1,6 +1,6 @@
 <template>
   <div class="tk-meta-input">
-    <el-input v-for="metaInput in metaInputs"
+    <el-input v-for="metaInput in displayedInputs"
         :key="metaInput.key"
         :name="metaInput.name"
         :type="metaInput.type"
@@ -42,6 +42,17 @@ export default {
     }
   },
   computed: {
+    displayedFields () {
+      const displayedFieldsSetting = this.config.DISPLAYED_FIELDS
+      return {
+        nick: displayedFieldsSetting ? displayedFieldsSetting.indexOf('nick') !== -1 : true,
+        mail: displayedFieldsSetting ? displayedFieldsSetting.indexOf('mail') !== -1 : true,
+        link: displayedFieldsSetting ? displayedFieldsSetting.indexOf('link') !== -1 : true
+      }
+    },
+    displayedInputs () {
+      return this.metaInputs.filter((i) => !!this.displayedFields[i.key])
+    },
     requiredFields () {
       const requiredFieldsSetting = this.config.REQUIRED_FIELDS
       return {
@@ -82,7 +93,7 @@ export default {
       if (isQQ(this.metaData.nick)) {
         // 模仿 Valine 的操作逻辑，当用户在 [昵称] 输入 QQ 号时
         // 1. 自动填充数字 QQ 邮箱到 [邮箱]
-        // 2. 自动填充 QQ 昵称到 [昵称] (使用了 https://docs.tenapi.cn/ 提供的接口，感谢作者：I Am I)
+        // 2. 自动填充 QQ 昵称到 [昵称]
         // 3. 自动显示 QQ 头像
         const qqNum = this.metaData.nick.replace(/@qq.com/ig, '')
         const qqMail = `${qqNum}@qq.com`
@@ -91,7 +102,7 @@ export default {
       }
     },
     getQQNick (qqNum) {
-      const url = `https://tenapi.cn/qqname?qq=${qqNum}`
+      const url = `https://api.qjqq.cn/api/qqinfo?qq=${qqNum}`
       const xhr = new XMLHttpRequest()
       xhr.onreadystatechange = () => {
         if (xhr.readyState === 4 && xhr.status === 200) {
