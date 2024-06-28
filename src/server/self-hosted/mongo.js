@@ -10,10 +10,11 @@ const getUserIP = require('get-user-ip')
 const { URL } = require('url')
 const { v4: uuidv4 } = require('uuid') // 用户 id 生成
 const {
-  $,
+  getCheerio,
   getDomPurify,
-  md5,
-  xml2js
+  getMd5,
+  getSha256,
+  getXml2js
 } = require('twikoo-func/utils/lib')
 const {
   getFuncVersion,
@@ -48,7 +49,11 @@ const { sendNotice, emailTest } = require('twikoo-func/utils/notify')
 const { uploadImage } = require('twikoo-func/utils/image')
 const logger = require('twikoo-func/utils/logger')
 
+const $ = getCheerio()
 const DOMPurify = getDomPurify()
+const md5 = getMd5()
+const sha256 = getSha256()
+const xml2js = getXml2js()
 
 // 常量 / constants
 const { RES_CODE, MAX_REQUEST_TIMES } = require('twikoo-func/utils/constants')
@@ -638,7 +643,7 @@ async function parse (comment, request) {
     uid: request.body.accessToken,
     nick: comment.nick ? comment.nick : '匿名',
     mail: comment.mail ? comment.mail : '',
-    mailMd5: comment.mail ? md5(normalizeMail(comment.mail)) : '',
+    mailMd5: comment.mail ? sha256(normalizeMail(comment.mail)) : '',
     link: comment.link ? comment.link : '',
     ua: comment.ua,
     ip: getIp(request),

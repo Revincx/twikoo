@@ -1,8 +1,30 @@
 const { URL } = require('url')
-const { axios, FormData, bowser, ipToRegion, md5 } = require('./lib')
+const {
+  getAxios,
+  getFormData,
+  getBowser,
+  getIpToRegion,
+  getMd5,
+  getSha256
+} = require('./lib')
+const axios = getAxios()
+const FormData = getFormData()
+const bowser = getBowser()
+const md5 = getMd5()
+const sha256 = getSha256()
 const { RES_CODE } = require('./constants')
-const ipRegionSearcher = ipToRegion.create() // 初始化 IP 属地
 const logger = require('./logger')
+
+let ipRegionSearcher
+
+// IP 属地查询
+function getIpRegionSearcher () {
+  if (!ipRegionSearcher) {
+    const ipToRegion = getIpToRegion()
+    ipRegionSearcher = ipToRegion.create() // 初始化 IP 属地
+  }
+  return ipRegionSearcher
+}
 
 const fn = {
   // 获取 Twikoo 云函数版本
@@ -119,7 +141,7 @@ const fn = {
       ip = ip.replace(/^::ffff:/, '')
       // Zeabur 返回的地址带端口号，去掉端口号。TODO: 不知道该怎么去掉 IPv6 地址后面的端口号
       ip = ip.replace(/:[0-9]*$/, '')
-      const { region } = ipRegionSearcher.binarySearchSync(ip)
+      const { region } = getIpRegionSearcher().binarySearchSync(ip)
       const [country,, province, city, isp] = region.split('|')
       // 有省显示省，没有省显示国家
       const area = province.trim() && province !== '0' ? province : country
@@ -163,14 +185,23 @@ const fn = {
     }
     return md5(comment.nick)
   },
+  getMailSha256 (comment) {
+    if (comment.mail) {
+      return sha256(fn.normalizeMail(comment.mail))
+    }
+    return sha256(comment.nick)
+  },
   getAvatar (comment, config) {
     if (comment.avatar) {
       return comment.avatar
     } else {
-      const gravatarCdn = config.GRAVATAR_CDN || 'cravatar.cn'
-      const defaultGravatar = config.DEFAULT_GRAVATAR || 'identicon'
-      const mailMd5 = fn.getMailMd5(comment)
-      return `https://${gravatarCdn}/avatar/${mailMd5}?d=${defaultGravatar}`
+      const gravatarCdn = config.GRAVATAR_CDN || 'weavatar.com'
+      let defaultGravatar = gravatarCdn === 'weavatar.com' ? `letter&letter=${comment.nick.charAt(0)}` : 'identicon'
+      if (config.DEFAULT_GRAVATAR) {
+        defaultGravatar = config.DEFAULT_GRAVATAR
+      }
+      const mailHash = gravatarCdn === 'cravatar.cn' ? fn.getMailMd5(comment) : fn.getMailSha256(comment) // Cravatar 不支持 sha256
+      return `https://${gravatarCdn}/avatar/${mailHash}?d=${defaultGravatar}`
     }
   },
   isUrl (s) {
@@ -276,6 +307,7 @@ const fn = {
         HIDE_ADMIN_CRYPT: config.HIDE_ADMIN_CRYPT,
         HIGHLIGHT: config.HIGHLIGHT || 'true',
         HIGHLIGHT_THEME: config.HIGHLIGHT_THEME,
+        HIGHLIGHT_PLUGIN: config.HIGHLIGHT_PLUGIN,
         LIMIT_LENGTH: config.LIMIT_LENGTH,
         TURNSTILE_SITE_KEY: config.TURNSTILE_SITE_KEY
       }

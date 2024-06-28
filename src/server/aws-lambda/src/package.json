@@ -1,10 +1,10 @@
 {
-  "name": "twikoo-netlify",
+  "name": "twikoo-aws-lambda",
   "version": "1.6.36",
   "description": "A simple comment system.",
   "author": "imaegoo <hello@imaegoo.com> (https://github.com/imaegoo)",
   "license": "MIT",
-  "main": "netlify/functions/twikoo.js",
+  "main": "index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/twikoojs/twikoo.git"

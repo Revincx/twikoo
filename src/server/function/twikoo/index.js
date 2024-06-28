@@ -7,10 +7,11 @@
 const { version: VERSION } = require('./package.json')
 const tcb = require('@cloudbase/node-sdk') // 云开发 SDK
 const {
-  $,
+  getCheerio,
   getDomPurify,
-  md5,
-  xml2js
+  getMd5,
+  getSha256,
+  getXml2js
 } = require('./utils/lib')
 const {
   getFuncVersion,
@@ -50,7 +51,11 @@ const app = tcb.init({ env: tcb.SYMBOL_CURRENT_ENV })
 const auth = app.auth()
 const db = app.database()
 const _ = db.command
+const $ = getCheerio()
 const DOMPurify = getDomPurify()
+const md5 = getMd5()
+const sha256 = getSha256()
+const xml2js = getXml2js()
 
 // 常量 / constants
 const { RES_CODE, MAX_REQUEST_TIMES } = require('./utils/constants')
@@ -621,7 +626,7 @@ async function parse (comment) {
     uid: await getUid(),
     nick: comment.nick ? comment.nick : '匿名',
     mail: comment.mail ? comment.mail : '',
-    mailMd5: comment.mail ? md5(normalizeMail(comment.mail)) : '',
+    mailMd5: comment.mail ? sha256(normalizeMail(comment.mail)) : '',
     link: comment.link ? comment.link : '',
     ua: comment.ua,
     ip: auth.getClientIP(),

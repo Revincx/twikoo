@@ -67,6 +67,10 @@ twikoo:
 
 请参考 [Redefine 官方文档 #comment](https://redefine-docs.ohevan.com/docs/configuration-guide/comment#twikoo) 进行配置
 
+### 在 [Hexo-Theme-Solitude](https://github.com/valor-x/hexo-theme-solitude) 主题使用
+
+请参考 [Solitude 文档](https://solitude-docs.efu.me/comments/twikoo) 进行配置
+
 ## 在 Hugo 中使用
 
 ### 在 [hugo-theme-stack](https://github.com/CaiJimmy/hugo-theme-stack) 主题使用
@@ -77,6 +81,10 @@ twikoo:
 
 请参考 [入门篇 - FixIt #主题配置](https://fixit.lruihao.cn/zh-cn/documentation/basics/#theme-configuration) 和 [hugo-fixit/FixIt/config.toml#L613-L624](https://github.com/hugo-fixit/FixIt/blob/8bb2a35dcc4c54fc3e0fb968df063d6be1daabf3/config.toml#L613-L624) 进行配置
 
+## 在 VitePress 中使用
+
+请参考 [VitePress 集成 twikoo 参考解决方案](https://github.com/twikoojs/twikoo/issues/715) 进行配置。
+
 ## 通过 CDN 引入
 
 ::: tip 提示
@@ -85,7 +93,7 @@ twikoo:
 
 ``` html
 <div id="tcomment"></div>
-<script src="https://cdn.staticfile.org/twikoo/1.6.31/twikoo.all.min.js"></script>
+<script src="https://cdn.staticfile.net/twikoo/1.6.36/twikoo.all.min.js"></script>
 <script>
 twikoo.init({
   envId: '您的环境id', // 腾讯云环境填 envId；Vercel 环境填地址（https://xxx.vercel.app）
@@ -103,10 +111,10 @@ twikoo.init({
 
 如果遇到默认 CDN 加载速度缓慢，可更换其他 CDN 镜像。以下为可供选择的公共 CDN，其中一些 CDN 可能需要数天时间同步最新版本：
 
-* `https://cdn.staticfile.org/twikoo/1.6.31/twikoo.all.min.js`
-* `https://lib.baomitu.com/twikoo/1.6.31/twikoo.all.min.js`
-* `https://cdn.bootcdn.net/ajax/libs/twikoo/1.6.31/twikoo.all.min.js`
-* `https://cdn.jsdelivr.net/npm/twikoo@1.6.31/dist/twikoo.all.min.js`
+* `https://cdn.staticfile.net/twikoo/1.6.36/twikoo.all.min.js`
+* `https://lib.baomitu.com/twikoo/1.6.36/twikoo.all.min.js`
+* `https://cdn.bootcdn.net/ajax/libs/twikoo/1.6.36/twikoo.all.min.js`
+* `https://cdn.jsdelivr.net/npm/twikoo@1.6.36/dist/twikoo.all.min.js`
 
 ## 开启管理面板（腾讯云环境）
 
