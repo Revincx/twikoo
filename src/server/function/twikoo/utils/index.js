@@ -109,7 +109,8 @@ const fn = {
           11: 'Big Sur',
           12: 'Monterey',
           13: 'Ventura',
-          14: 'Sonoma'
+          14: 'Sonoma',
+          15: 'Sequoia'
         }[majorPlatformVersion]
       } else if (os.name === 'Android') {
         const majorPlatformVersion = os.version.split('.')[0]
@@ -118,7 +119,8 @@ const fn = {
           11: 'Red Velvet Cake',
           12: 'Snow Cone',
           13: 'Tiramisu',
-          14: 'Upside Down Cake'
+          14: 'Upside Down Cake',
+          15: 'Vanilla Ice Cream'
         }[majorPlatformVersion]
       }
     }
@@ -218,6 +220,7 @@ const fn = {
   async getQQAvatar (qq) {
     try {
       const qqNum = qq.replace(/@qq.com/ig, '')
+      // TODO: 这个接口已经失效了，暂时找不到新的接口
       const result = await axios.get(`https://aq.qq.com/cn2/get_img/get_face?img_type=3&uin=${qqNum}`)
       return result.data?.url || null
     } catch (e) {

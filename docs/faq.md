@@ -16,6 +16,14 @@
 2. 用文本编辑器打开私钥文件，复制全部内容
 3. 点击评论窗口的“小齿轮”图标，粘贴私钥文件内容，并设置管理员密码
 
+## 忘记暗号，无法进入管理面板怎么办？
+
+在包含评论框的页面，打开浏览器开发者工具（Windows 下快捷键为 F12），点击 Network 标签，刷新一下页面，点击放大镜图标（Search），在出现的搜索栏中输入 `HIDE_ADMIN_CRYPT`，点击搜索栏旁边的刷新图标（Refresh），即可找到您的暗号。
+
+![](./static/faq-1.png)
+
+请注意，暗号并非管理面板的加密手段，仅用于向普通访客隐藏管理面板，请勿把暗号和管理面板的密码设置为相同的字符串。
+
 ## 如何开启文章访问量统计？
 
 您可以在需要展示文章访问量的地方添加：
@@ -72,7 +80,7 @@ Twikoo 支持接入腾讯云文本内容检测，使用深度学习技术，识�
 
 1. 访问[腾讯云控制台-文本内容安全](https://console.cloud.tencent.com/cms/text/overview)，开通文本内容安全服务
 2. 访问[腾讯云控制台-用户列表](https://console.cloud.tencent.com/cam)，点击新建用户，点击快速创建
-3. 输入用户名，访问方式选择“编程访问”，用户权限取消“AdministratorAccess”，只勾选“QcloudCMSFullAccess”
+3. 输入用户名，访问方式选择“编程访问”，用户权限取消“AdministratorAccess”，只勾选“QcloudTMSFullAccess”
 4. 点击“创建用户”
 5. 复制“成功新建用户”页面的“SecretId”和“SecretKey”，到 Twikoo 管理面板“反垃圾”模块中配置
 6. 测试反垃圾效果
@@ -101,6 +109,10 @@ Akismet (Automattic Kismet) 是应用广泛的一个垃圾留言过滤系统，�
 
 如果是 Vercel 部署的云函数，请配置国外邮件服务商，避免被邮件服务商判定为垃圾邮件行为。如果是其他原因，请前往 Twikoo 管理面板，找到邮件测试功能，输入个人邮箱，根据测试结果排查原因。
 
+如果是 Vercel 部署的云函数，邮件测试正常，但实际评论收不到任何即时消息通知 / 邮件通知，请打开 Vercel 云函数管理页面，进入 Settings - Deployment Protection，设置 Vercel Authentication 为 Disabled，并 Save。
+
+![](./static/vercel-1.png)
+
 为了避免频繁检查邮箱带来的性能问题，邮件配置有 10 分钟左右的缓存，如果确定配置没有问题，但测试失败，可以等待 10 分钟后再测试。
 
 由于博主发表评论时，不会通知博主，如果您想实际测试通知功能，请注销管理面板后用非博主邮箱发表或回复评论。
@@ -128,7 +140,7 @@ Twikoo 私有部署版默认使用内置数据库：LokiJS 数据库，支持的
 
 如果看到 ERR_BLOCKED_BY_CLIENT，请禁用浏览器去广告插件或将当前网站加入白名单，然后刷新重试。
 
-如果看到 ERR_CONNECTION_CLOSED，请检查自己所处的地区网络环境是否正常，能够连通云函数，部分地区无法访问 Vercel 等服务，请更换部署方式再试。
+如果看到 ERR_CONNECTION_CLOSED / ERR_CONNECTION_TIMED_OUT / ERR_CONNECTION_RESET，请检查自己所处的地区网络环境是否正常，能够连通云函数，部分地区无法访问 Vercel 等服务，请更换部署方式再试。
 
 如果看到 `Access to XMLHttpRequest at 'https://tcb-api.tencentcloudapi.com/web?env=...' from origin '...' has been blocked by CORS policy...`：请检查前端 js 文件版本是否最新，并确保 envId 以 `https://` 开头。
 
