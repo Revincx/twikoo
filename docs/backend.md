@@ -45,7 +45,7 @@ exports.main = require('twikoo-func').main
 8. 创建完成后，点击“twikoo"进入云函数详情页，进入“函数代码”标签，点击“文件 - 新建文件”，输入 `package.json`，回车
 9. 复制以下代码、粘贴到代码框中，点击“保存并安装依赖”
 ``` json
-{ "dependencies": { "twikoo-func": "1.6.39" } }
+{ "dependencies": { "twikoo-func": "1.6.42" } }
 ```
 
 ## 腾讯云命令行部署
@@ -83,6 +83,26 @@ yarn run login
 ``` sh
 yarn deploy -e 您的环境id
 ```
+
+## 宝塔面板 部署
+
+::: warning 注意
+宝塔面板 (适用 9.2.0 及以上的版本)
+:::
+
+前往 [宝塔面板官网](https://www.bt.cn/new/download.html)，选择正式版的脚本下载安装（如果已安装，请跳过此步）
+
+1. 安装后登录宝塔面板，在左侧导航栏点击 Docker，首先进入会提示安装 Docker 服务，点击立即安装，按提示完成安装
+
+![20241010103723](https://github.com/user-attachments/assets/d15d3422-b2c0-4bd0-a889-4f275565d9cd)
+
+2. 完成安装后在应用商店中找到 Twikoo ，点击安装，配置域名、端口等基本信息即可完成安装
+
+![1730860915662](https://github.com/user-attachments/assets/fca433b3-5ba9-4424-af0e-4063df341833)
+
+注意：域名为非必填，如果填写了域名则通过【网站】-【反向代理】来管理，填写域名后不需要勾选【允许外部访问】，否则需要勾选后才可以通过端口访问
+
+3. 安装后在浏览器输入上一步设置的域名或者 IP + 端口即可访问。
 
 ## Vercel 部署
 
