@@ -1,7 +1,7 @@
 <template>
   <div class="tk-admin-container">
     <div class="tk-admin" :class="{ '__show': show }" v-loading="loading">
-      <a class="tk-admin-close" href="#" @click="onClose" v-html="iconClose"></a>
+      <button class="tk-admin-close" @click="onClose" v-html="iconClose"></button>
       <div class="tk-login-title" v-if="needUpdate">
         <div>{{ t('ADMIN_NEED_UPDATE') }}</div>
         <a href="https://twikoo.js.org/update.html" target="_blank">https://twikoo.js.org/update.html</a>
@@ -43,7 +43,7 @@
         <div class="tk-panel" v-if="isLogin">
           <div class="tk-panel-title">
             <div>{{ t('ADMIN_TITLE') }}</div>
-            <a class="tk-panel-logout" href="#" @click="onLogout">{{ t('ADMIN_LOGOUT') }}</a>
+            <a class="tk-panel-logout" href="#" @click.prevent="onLogout">{{ t('ADMIN_LOGOUT') }}</a>
           </div>
           <div class="tk-tabs">
             <div class="tk-tab" :class="{ __active: activeTabName === 'comment' }" @click="activeTabName = 'comment'">{{ t('ADMIN_COMMENT') }}</div>
@@ -212,8 +212,7 @@ export default {
         throw e
       }
     },
-    onClose ($event) {
-      $event.preventDefault()
+    onClose () {
       this.$emit('close')
     }
   },
@@ -245,7 +244,8 @@ export default {
   overflow-y: auto;
   pointer-events: all;
   color: #ffffff;
-  background-color: rgba(0,0,0,0.60);
+  background-color: rgba(0, 0, 0, 0.85);
+  -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
   transition: all 0.5s ease;
   visibility: hidden;
@@ -265,11 +265,16 @@ export default {
   visibility: visible;
 }
 .tk-admin-close {
+  appearance: none;
+  background: none;
+  border: none;
+  margin: 0;
+  text-decoration: none;
+  cursor: pointer;
   position: sticky;
-  float: right;
   display: block;
-  top: 0;
-  right: 0;
+  top: 1rem;
+  left: calc(100% - 3rem);
   width: 1rem;
   height: 1rem;
   padding: 1rem;

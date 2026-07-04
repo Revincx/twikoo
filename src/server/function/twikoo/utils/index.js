@@ -75,6 +75,8 @@ const fn = {
       }
     }
     const showRegion = !!config.SHOW_REGION && config.SHOW_REGION !== 'false'
+    const ups = comment.ups || []
+    const downs = comment.downs || []
     return {
       id: comment._id.toString(),
       nick: comment.nick,
@@ -87,13 +89,17 @@ const fn = {
       ipRegion: showRegion ? fn.getIpRegion({ ip: comment.ip }) : '',
       master: comment.master,
       like: comment.like ? comment.like.length : 0,
-      liked: comment.like ? comment.like.findIndex((item) => item === uid) > -1 : false,
-      replies: replies,
+      ups: ups.length,
+      downs: downs.length,
+      liked: ups.includes(uid),
+      disliked: downs.includes(uid),
+      replies,
       rid: comment.rid,
       pid: comment.pid,
       ruser: fn.ruser(comment.pid, comments),
       top: comment.top,
       isSpam: comment.isSpam,
+      isOwner: comment.uid === uid,
       created: comment.created,
       updated: comment.updated
     }
@@ -226,6 +232,17 @@ const fn = {
   isUrl (s) {
     return /^http(s)?:\/\//.test(s)
   },
+  isValidEmail (mail) {
+    if (!mail || typeof mail !== 'string') return false
+    const trimmed = mail.trim()
+    if (!trimmed) return false
+    // Reject emails with characters that could trigger nodemailer addressparser group parsing (CVE-2025-14874)
+    if (trimmed.indexOf(':') !== -1) return false
+    if (trimmed.indexOf(' ') !== -1) return false
+    if (trimmed.indexOf(';') !== -1) return false
+    // Basic email format validation
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)
+  },
   isQQ (mail) {
     return /^[1-9][0-9]{4,10}$/.test(mail) ||
       /^[1-9][0-9]{4,10}@qq.com$/i.test(mail)
@@ -242,6 +259,23 @@ const fn = {
       return result.data?.url || null
     } catch (e) {
       logger.warn('获取 QQ 头像失败：', e)
+    }
+  },
+  async getQQNick (qq, qqApiKey) {
+    try {
+      const qqNum = qq.replace(/@qq.com/ig, '')
+      const headers = {}
+      if (qqApiKey) {
+        headers.Authorization = `Bearer ${qqApiKey}`
+      }
+      const result = await axios.get(`https://v1.nsuuu.com/api/qqname?qq=${qqNum}`, { headers })
+      if (result.data?.code === 200 && result.data?.data?.nick) {
+        return result.data.data.nick
+      }
+      return null
+    } catch (e) {
+      logger.warn('获取 QQ 昵称失败：', e)
+      return null
     }
   },
   // 判断是否存在管理员密码
@@ -304,33 +338,102 @@ const fn = {
       throw new Error('验证码检测失败: ' + e.message)
     }
   },
+  async checkGeeTestCaptcha ({ geeTestCaptchaId, geeTestCaptchaKey, geeTestLotNumber, geeTestCaptchaOutput, geeTestPassToken, geeTestGenTime }) {
+    try {
+      logger.log('极验验证参数:', { geeTestCaptchaId, geeTestCaptchaKey: geeTestCaptchaKey ? '***' : undefined, geeTestLotNumber })
+      const crypto = require('crypto')
+      const signToken = crypto
+        .createHmac('sha256', geeTestCaptchaKey)
+        .update(geeTestLotNumber)
+        .digest('hex')
+      const params = new URLSearchParams()
+      params.append('lot_number', geeTestLotNumber)
+      params.append('captcha_output', geeTestCaptchaOutput)
+      params.append('pass_token', geeTestPassToken)
+      params.append('gen_time', geeTestGenTime)
+      params.append('sign_token', signToken)
+      logger.log('极验请求参数:', params.toString())
+      const url = `https://gcaptcha4.geetest.com/validate?captcha_id=${geeTestCaptchaId}`
+      const { data } = await axios.post(url, params.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      })
+      logger.log('极验验证码检测结果', JSON.stringify(data))
+      if (data.result !== 'success') {
+        logger.error('极验验证失败详情:', data)
+        throw new Error(data.reason || data.msg || '验证码错误')
+      }
+    } catch (e) {
+      throw new Error('极验验证码检测失败: ' + e.message)
+    }
+  },
+  async checkCapCaptcha ({ capToken, capSecretKey, capApiEndpoint }) {
+    try {
+      // 移除末尾的斜杠，避免双斜杠
+      const endpoint = capApiEndpoint.replace(/\/$/, '')
+      // Cap 的 siteverify 端点
+      const url = `${endpoint}/siteverify`
+      logger.log('Cap验证码验证URL:', url)
+      logger.log('Cap验证码验证参数:', { secret: capSecretKey ? '***' : undefined, response: capToken.substring(0, 20) + '...' })
+      const { data } = await axios.post(url, {
+        secret: capSecretKey,
+        response: capToken
+      }, {
+        headers: { 'Content-Type': 'application/json' }
+      })
+      logger.log('Cap验证码检测结果', data)
+      if (!data.success) throw new Error(data.error || '验证码错误')
+    } catch (e) {
+      throw new Error('Cap验证码检测失败: ' + e.message)
+    }
+  },
   async getConfig ({ config, VERSION, isAdmin }) {
+    // 构建对外配置，避免在启用某一验证码供应商时泄露另一个供应商的 key
+    const baseConfig = {
+      VERSION,
+      IS_ADMIN: isAdmin,
+      SITE_NAME: config.SITE_NAME,
+      SITE_URL: config.SITE_URL,
+      MASTER_TAG: config.MASTER_TAG,
+      COMMENT_BG_IMG: config.COMMENT_BG_IMG,
+      GRAVATAR_CDN: config.GRAVATAR_CDN,
+      DEFAULT_GRAVATAR: config.DEFAULT_GRAVATAR,
+      SHOW_IMAGE: config.SHOW_IMAGE || 'true',
+      IMAGE_CDN: config.IMAGE_CDN,
+      LIGHTBOX: config.LIGHTBOX || 'false',
+      SHOW_EMOTION: config.SHOW_EMOTION || 'true',
+      EMOTION_CDN: config.EMOTION_CDN,
+      COMMENT_PLACEHOLDER: config.COMMENT_PLACEHOLDER,
+      SHOW_ORDER: config.SHOW_ORDER || 'true',
+      SHOW_DISLIKE: config.SHOW_DISLIKE || 'true',
+      DISPLAYED_FIELDS: config.DISPLAYED_FIELDS,
+      REQUIRED_FIELDS: config.REQUIRED_FIELDS,
+      HIDE_ADMIN_CRYPT: config.HIDE_ADMIN_CRYPT,
+      HIGHLIGHT: config.HIGHLIGHT || 'true',
+      HIGHLIGHT_THEME: config.HIGHLIGHT_THEME,
+      HIGHLIGHT_PLUGIN: config.HIGHLIGHT_PLUGIN,
+      LIMIT_LENGTH: config.LIMIT_LENGTH,
+      CAPTCHA_PROVIDER: config.CAPTCHA_PROVIDER,
+      QQ_API_KEY: config.QQ_API_KEY
+    }
+
+    // 仅在明确指定使用 Turnstile 时下发 Turnstile 的 site key
+    if (config.CAPTCHA_PROVIDER === 'Turnstile') {
+      baseConfig.TURNSTILE_SITE_KEY = config.TURNSTILE_SITE_KEY
+    }
+
+    // 仅在明确指定使用 Geetest 时下发 Geetest 的 id
+    if (config.CAPTCHA_PROVIDER === 'Geetest') {
+      baseConfig.GEETEST_CAPTCHA_ID = config.GEETEST_CAPTCHA_ID
+    }
+
+    // 仅在明确指定使用 Cap 时下发 Cap 的 api endpoint
+    if (config.CAPTCHA_PROVIDER === 'Cap') {
+      baseConfig.CAP_API_ENDPOINT = config.CAP_API_ENDPOINT
+    }
+
     return {
       code: RES_CODE.SUCCESS,
-      config: {
-        VERSION,
-        IS_ADMIN: isAdmin,
-        SITE_NAME: config.SITE_NAME,
-        SITE_URL: config.SITE_URL,
-        MASTER_TAG: config.MASTER_TAG,
-        COMMENT_BG_IMG: config.COMMENT_BG_IMG,
-        GRAVATAR_CDN: config.GRAVATAR_CDN,
-        DEFAULT_GRAVATAR: config.DEFAULT_GRAVATAR,
-        SHOW_IMAGE: config.SHOW_IMAGE || 'true',
-        IMAGE_CDN: config.IMAGE_CDN,
-        LIGHTBOX: config.LIGHTBOX || 'false',
-        SHOW_EMOTION: config.SHOW_EMOTION || 'true',
-        EMOTION_CDN: config.EMOTION_CDN,
-        COMMENT_PLACEHOLDER: config.COMMENT_PLACEHOLDER,
-        DISPLAYED_FIELDS: config.DISPLAYED_FIELDS,
-        REQUIRED_FIELDS: config.REQUIRED_FIELDS,
-        HIDE_ADMIN_CRYPT: config.HIDE_ADMIN_CRYPT,
-        HIGHLIGHT: config.HIGHLIGHT || 'true',
-        HIGHLIGHT_THEME: config.HIGHLIGHT_THEME,
-        HIGHLIGHT_PLUGIN: config.HIGHLIGHT_PLUGIN,
-        LIMIT_LENGTH: config.LIMIT_LENGTH,
-        TURNSTILE_SITE_KEY: config.TURNSTILE_SITE_KEY
-      }
+      config: baseConfig
     }
   },
   async getConfigForAdmin ({ config, isAdmin }) {
@@ -354,6 +457,18 @@ const fn = {
         throw new Error(`参数"${requiredParam}"不合法`)
       }
     }
+  },
+  // 校验评论归属：确认评论存在且属于当前用户
+  async checkCommentOwnership (id, uid, getComment) {
+    fn.validate({ id }, ['id'])
+    const comment = await getComment(id)
+    if (!comment) {
+      throw new Error('评论不存在')
+    }
+    if (comment.uid !== uid) {
+      throw new Error('只能删除自己的评论')
+    }
+    return comment
   }
 }
 

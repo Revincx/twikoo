@@ -16,6 +16,7 @@
 <script>
 import { app } from '../index'
 import { isQQ, t } from '../../utils'
+import { call } from '../../utils/api'
 
 // 邮箱正则表达式来自 https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/email#validation
 const mailRegExp = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
@@ -101,18 +102,25 @@ export default {
         this.getQQNick(qqNum)
       }
     },
-    getQQNick (qqNum) {
-      const url = `https://api.qjqq.cn/api/qqinfo?qq=${qqNum}`
-      const xhr = new XMLHttpRequest()
-      xhr.onreadystatechange = () => {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-          const response = JSON.parse(xhr.responseText)
-          this.metaData.nick = response.name
-          this.updateMeta()
-        }
+    clearNickIfFromQQInput () {
+      if (isQQ(this.metaData.nick)) {
+        this.metaData.nick = ''
+        this.updateMeta()
       }
-      xhr.open('GET', url)
-      xhr.send()
+    },
+    async getQQNick (qqNum) {
+      try {
+        const { result } = await call(null, 'GET_QQ_NICK', { qq: qqNum })
+        if (result && result.nick) {
+          this.metaData.nick = result.nick
+          this.updateMeta()
+        } else {
+          this.clearNickIfFromQQInput()
+        }
+      } catch (e) {
+        console.warn('获取 QQ 昵称失败：', e)
+        this.clearNickIfFromQQInput()
+      }
     },
     checkAdminCrypt () {
       const app = this.$root.$children[0]

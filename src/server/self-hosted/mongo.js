@@ -32,9 +32,12 @@ const {
   getPasswordStatus,
   preCheckSpam,
   checkTurnstileCaptcha,
+  checkGeeTestCaptcha,
+  checkCapCaptcha,
   getConfig,
   getConfigForAdmin,
-  validate
+  validate,
+  checkCommentOwnership
 } = require('twikoo-func/utils')
 const {
   jsonParse,
@@ -63,6 +66,8 @@ const TWIKOO_REQ_TIMES_CLEAR_TIME = parseInt(process.env.TWIKOO_REQ_TIMES_CLEAR_
 let db = null
 let config
 let requestTimes = {}
+let client = null
+let requestTimesTimer = null
 
 module.exports = async (request, response) => {
   let accessToken
@@ -96,6 +101,9 @@ module.exports = async (request, response) => {
         break
       case 'COMMENT_DELETE_FOR_ADMIN':
         res = await commentDeleteForAdmin(event)
+        break
+      case 'COMMENT_DELETE_FOR_USER':
+        res = await commentDeleteForUser(event)
         break
       case 'COMMENT_IMPORT_FOR_ADMIN':
         res = await commentImportForAdmin(event)
@@ -219,7 +227,7 @@ async function connectToDatabase (uri) {
   if (!uri) throw new Error('未设置环境变量 MONGODB_URI | MONGO_URL')
   // If no connection is cached, create a new one
   logger.info('Connecting to database...')
-  const client = await MongoClient.connect(uri, {})
+  client = await MongoClient.connect(uri, {})
   // Select the database through the connection,
   // using the database path of the connection string
   const dbName = (new URL(uri)).pathname.substring(1) || 'twikoo'
@@ -268,6 +276,7 @@ async function commentGet (event) {
     const uid = event.accessToken
     const isAdminUser = isAdmin(event.accessToken)
     const limit = parseInt(config.COMMENT_PAGE_SIZE) || 8
+    const sort = event.sort || 'newest'
     let more = false
     let condition
     let query
@@ -288,10 +297,21 @@ async function commentGet (event) {
     // 不包含置顶
     condition.top = { $ne: true }
     query = getCommentQuery({ condition, uid, isAdminUser })
+
+    let orderField = 'created'
+    let orderDirection = -1
+    if (sort === 'oldest') {
+      orderField = 'created'
+      orderDirection = 1
+    } else if (sort === 'popular') {
+      orderField = 'ups'
+      orderDirection = -1
+    }
+
     let main = await db
       .collection('comment')
       .find(query)
-      .sort({ created: -1 })
+      .sort({ [orderField]: orderDirection })
       // 流式分页，通过多读 1 条的方式，确认是否还有更多评论
       .limit(limit + 1)
       .toArray()
@@ -446,6 +466,24 @@ async function commentDeleteForAdmin (event) {
   return res
 }
 
+// 用户删除自己的评论
+async function commentDeleteForUser (event) {
+  const res = {}
+  try {
+    const uid = event.accessToken
+    await checkCommentOwnership(event.id, uid, async (id) => {
+      return db.collection('comment').findOne({ _id: id })
+    })
+    const data = await db.collection('comment').deleteOne({ _id: event.id })
+    res.code = RES_CODE.SUCCESS
+    res.deleted = data.deletedCount
+  } catch (e) {
+    res.code = RES_CODE.FAIL
+    res.message = e.message
+  }
+  return res
+}
+
 // 管理员导入评论
 async function commentImportForAdmin (event) {
   const res = {}
@@ -547,30 +585,46 @@ async function bulkSaveComments (comments) {
   return batchRes.insertedCount
 }
 
-// 点赞 / 取消点赞
+// 点赞 / 反对 / 取消
 async function commentLike (event) {
   const res = {}
   validate(event, ['id'])
-  res.updated = await like(event.id, event.accessToken)
+  const type = event.type || 'up'
+  res.updated = await like(event.id, event.accessToken, type)
   return res
 }
 
-// 点赞 / 取消点赞
-async function like (id, uid) {
+// 点赞 / 反对 / 取消
+async function like (id, uid, type) {
   const record = db
     .collection('comment')
   const comment = await record
     .findOne({ _id: id })
-  let likes = comment && comment.like ? comment.like : []
-  if (likes.findIndex((item) => item === uid) === -1) {
-    // 赞
-    likes.push(uid)
-  } else {
-    // 取消赞
-    likes = likes.filter((item) => item !== uid)
+  const commentData = comment || {}
+  const ups = commentData.ups || []
+  const downs = commentData.downs || []
+
+  let newUps = [...ups]
+  let newDowns = [...downs]
+
+  if (type === 'up') {
+    if (ups.includes(uid)) {
+      newUps = ups.filter((item) => item !== uid)
+    } else {
+      newUps.push(uid)
+      newDowns = downs.filter((item) => item !== uid)
+    }
+  } else if (type === 'down') {
+    if (downs.includes(uid)) {
+      newDowns = downs.filter((item) => item !== uid)
+    } else {
+      newDowns.push(uid)
+      newUps = ups.filter((item) => item !== uid)
+    }
   }
+
   const result = await record.updateOne({ _id: id }, {
-    $set: { like: likes }
+    $set: { ups: newUps, downs: newDowns }
   })
   return result
 }
@@ -707,12 +761,35 @@ async function limitFilter (request) {
 }
 
 async function checkCaptcha (comment, request) {
-  if (config.TURNSTILE_SITE_KEY && config.TURNSTILE_SECRET_KEY) {
+  const provider = config.CAPTCHA_PROVIDER
+  if (provider === 'Turnstile' && config.TURNSTILE_SITE_KEY && config.TURNSTILE_SECRET_KEY) {
     await checkTurnstileCaptcha({
       ip: getIp(request),
       turnstileToken: comment.turnstileToken,
       turnstileTokenSecretKey: config.TURNSTILE_SECRET_KEY
     })
+  } else if (provider === 'Geetest' && config.GEETEST_CAPTCHA_ID && config.GEETEST_CAPTCHA_KEY) {
+    await checkGeeTestCaptcha({
+      geeTestCaptchaId: config.GEETEST_CAPTCHA_ID,
+      geeTestCaptchaKey: config.GEETEST_CAPTCHA_KEY,
+      geeTestLotNumber: comment.geeTestLotNumber,
+      geeTestCaptchaOutput: comment.geeTestCaptchaOutput,
+      geeTestPassToken: comment.geeTestPassToken,
+      geeTestGenTime: comment.geeTestGenTime
+    })
+  } else if (provider === 'Cap' && config.CAP_API_ENDPOINT && config.CAP_SECRET_KEY) {
+    if (!comment.capToken) {
+      throw new Error('验证码 token 缺失，请刷新页面重试')
+    }
+    await checkCapCaptcha({
+      capToken: comment.capToken,
+      capSecretKey: config.CAP_SECRET_KEY,
+      capApiEndpoint: config.CAP_API_ENDPOINT
+    })
+  } else if (provider === 'Cap') {
+    throw new Error('Cap 验证码配置不完整，请联系管理员')
+  } else if (provider) {
+    throw new Error(`不支持的验证码类型: ${provider}`)
   }
 }
 
@@ -962,8 +1039,22 @@ function getIp (request) {
   return getUserIP(request)
 }
 
+async function shutdown () {
+  if (requestTimesTimer) {
+    clearInterval(requestTimesTimer)
+    requestTimesTimer = null
+  }
+  if (client) {
+    await client.close()
+    client = null
+    db = null
+  }
+}
+
 function clearRequestTimes () {
   requestTimes = {}
 }
 
-setInterval(clearRequestTimes, TWIKOO_REQ_TIMES_CLEAR_TIME)
+requestTimesTimer = setInterval(clearRequestTimes, TWIKOO_REQ_TIMES_CLEAR_TIME)
+
+module.exports.shutdown = shutdown

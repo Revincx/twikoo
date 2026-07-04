@@ -1,15 +1,25 @@
 <template>
   <div class="tk-action">
-    <a class="tk-action-link" :class="{ 'tk-liked': liked }" href="#" @click="onLike">
+    <button class="tk-action-link" @click="onDelete" v-if="showDelete">
+      <span class="tk-action-icon" v-html="iconDelete"></span>
+      <span class="tk-action-icon tk-action-icon-solid" v-html="iconDeleteSolid"></span>
+      <span class="tk-action-count"></span>
+    </button>
+    <button class="tk-action-link" :class="{ 'tk-liked': liked }" @click="onLike">
       <span class="tk-action-icon" v-html="iconLike"></span>
       <span class="tk-action-icon tk-action-icon-solid" v-html="iconLikeSolid"></span>
       <span class="tk-action-count">{{ likeCountStr }}</span>
-    </a>
-    <a class="tk-action-link" href="#" @click="onReply">
+    </button>
+    <button class="tk-action-link" :class="{ 'tk-disliked': disliked }" @click="onDislike" v-if="showDislike">
+      <span class="tk-action-icon" v-html="iconDislike"></span>
+      <span class="tk-action-icon tk-action-icon-solid" v-html="iconDislikeSolid"></span>
+      <span class="tk-action-count">{{ dislikeCountStr }}</span>
+    </button>
+    <button class="tk-action-link" @click="onReply">
       <span class="tk-action-icon" v-html="iconComment"></span>
       <span class="tk-action-icon tk-action-icon-solid" v-html="iconCommentSolid"></span>
       <span class="tk-action-count">{{ repliesCountStr }}</span>
-    </a>
+    </button>
   </div>
 </template>
 
@@ -18,6 +28,10 @@ import iconComment from '@fortawesome/fontawesome-free/svgs/regular/comment.svg'
 import iconCommentSolid from '@fortawesome/fontawesome-free/svgs/solid/comment.svg'
 import iconLike from '@fortawesome/fontawesome-free/svgs/regular/thumbs-up.svg'
 import iconLikeSolid from '@fortawesome/fontawesome-free/svgs/solid/thumbs-up.svg'
+import iconDislike from '@fortawesome/fontawesome-free/svgs/regular/thumbs-down.svg'
+import iconDislikeSolid from '@fortawesome/fontawesome-free/svgs/solid/thumbs-down.svg'
+import iconDelete from '@fortawesome/fontawesome-free/svgs/regular/trash-alt.svg'
+import iconDeleteSolid from '@fortawesome/fontawesome-free/svgs/solid/trash-alt.svg'
 
 export default {
   data () {
@@ -25,30 +39,45 @@ export default {
       iconComment,
       iconCommentSolid,
       iconLike,
-      iconLikeSolid
+      iconLikeSolid,
+      iconDislike,
+      iconDislikeSolid,
+      iconDelete,
+      iconDeleteSolid
     }
   },
   props: {
     liked: Boolean,
+    disliked: Boolean,
     likeCount: Number,
-    repliesCount: Number
+    dislikeCount: Number,
+    repliesCount: Number,
+    showDislike: Boolean,
+    showDelete: Boolean
   },
   computed: {
     likeCountStr () {
       return this.likeCount > 0 ? `${this.likeCount}` : ''
+    },
+    dislikeCountStr () {
+      return this.dislikeCount > 0 ? `${this.dislikeCount}` : ''
     },
     repliesCountStr () {
       return this.repliesCount > 0 ? `${this.repliesCount}` : ''
     }
   },
   methods: {
-    onLike ($event) {
-      $event.preventDefault()
+    onLike () {
       this.$emit('like')
     },
-    onReply ($event) {
-      $event.preventDefault()
+    onDislike () {
+      this.$emit('dislike')
+    },
+    onReply () {
       this.$emit('reply')
+    },
+    onDelete () {
+      this.$emit('delete')
     }
   }
 }
@@ -60,6 +89,12 @@ export default {
   align-items: center;
 }
 .tk-action-link {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  margin: 0;
   margin-left: 0.5rem;
   color: #409eff;
   text-decoration: none;
@@ -75,6 +110,14 @@ export default {
 }
 .tk-action-link.tk-liked .tk-action-icon-solid,
 .tk-action-link:hover .tk-action-icon-solid {
+  display: block;
+}
+.tk-action-link.tk-disliked .tk-action-icon,
+.tk-action-link.tk-disliked:hover .tk-action-icon {
+  display: none;
+}
+.tk-action-link.tk-disliked .tk-action-icon-solid,
+.tk-action-link.tk-disliked:hover .tk-action-icon-solid {
   display: block;
 }
 .tk-action-count {

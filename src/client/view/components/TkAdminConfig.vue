@@ -5,13 +5,17 @@
       <span>{{ t('ADMIN_SERVER_VERSION') }}{{ serverVersion }}，</span>
       <span>请参考&nbsp;<a href="https://twikoo.js.org/update.html" target="_blank">版本更新</a>&nbsp;进行升级</span>
     </div>
+    <form @submit.prevent="saveConfig">
     <div class="tk-admin-config-groups">
       <details class="tk-admin-config-group" v-for="settingGroup in settings" :key="settingGroup.name">
         <summary class="tk-admin-config-group-title">{{ settingGroup.name }}</summary>
-        <div class="tk-admin-config-item" v-for="setting in settingGroup.items" :key="setting.key">
+        <div class="tk-admin-config-item" v-for="setting in settingGroup.items" :key="setting.key" v-show="showSetting(setting)">
           <div class="tk-admin-config-title" :title="setting.key">{{ setting.key }}</div>
           <div class="tk-admin-config-input">
-            <el-input v-model="setting.value" :placeholder="setting.ph" size="small" :show-password="setting.secret" />
+            <select v-if="setting.options" v-model="setting.value" class="tk-admin-config-select">
+              <option v-for="opt in setting.options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+            </select>
+            <el-input v-else v-model="setting.value" :placeholder="setting.ph" size="small" :show-password="setting.secret" />
           </div>
           <div></div>
           <div class="tk-admin-config-desc">{{ setting.desc }}</div>
@@ -31,9 +35,10 @@
       </details>
     </div>
     <div class="tk-admin-config-actions">
-      <el-button size="small" type="primary" @click="saveConfig">{{ t('ADMIN_CONFIG_SAVE') }}</el-button>
+      <el-button size="small" type="primary" native-type="submit">{{ t('ADMIN_CONFIG_SAVE') }}</el-button>
       <el-button size="small" type="info" @click="resetConfig">{{ t('ADMIN_CONFIG_RESET') }}</el-button>
     </div>
+    </form>
     <div class="tk-admin-config-message">{{ message }}</div>
   </div>
 </template>
@@ -41,6 +46,7 @@
 <script>
 import { call, logger, t } from '../../utils'
 import { version } from '../../version'
+import { app } from '../index'
 
 export default {
   data () {
@@ -61,18 +67,45 @@ export default {
             { key: 'GRAVATAR_CDN', desc: t('ADMIN_CONFIG_ITEM_GRAVATAR_CDN'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}sdn.geekzu.org`, value: '' },
             { key: 'DEFAULT_GRAVATAR', desc: t('ADMIN_CONFIG_ITEM_DEFAULT_GRAVATAR'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}mp`, value: '' },
             { key: 'COMMENT_PLACEHOLDER', desc: t('ADMIN_CONFIG_ITEM_COMMENT_PLACEHOLDER'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}`, value: '' },
+            { key: 'SHOW_ORDER', desc: t('ADMIN_CONFIG_ITEM_SHOW_ORDER'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}true`, value: '' },
+            { key: 'SHOW_DISLIKE', desc: t('ADMIN_CONFIG_ITEM_SHOW_DISLIKE'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}true`, value: '' },
             { key: 'DISPLAYED_FIELDS', desc: t('ADMIN_CONFIG_ITEM_DISPLAYED_FIELDS'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}nick,mail,link`, value: '' },
             { key: 'REQUIRED_FIELDS', desc: t('ADMIN_CONFIG_ITEM_REQUIRED_FIELDS'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}nick,mail,link`, value: '' },
-            { key: 'HIDE_ADMIN_CRYPT', desc: t('ADMIN_CONFIG_ITEM_HIDE_ADMIN_CRYPT'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}admin`, value: '' }
+            { key: 'HIDE_ADMIN_CRYPT', desc: t('ADMIN_CONFIG_ITEM_HIDE_ADMIN_CRYPT'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}admin`, value: '' },
+            { key: 'QQ_API_KEY', desc: t('ADMIN_CONFIG_ITEM_QQ_API_KEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}your_api_key`, value: '' }
           ]
         },
         {
           name: t('ADMIN_CONFIG_CATEGORY_PLUGIN'),
           items: [
-            { key: 'SHOW_IMAGE', desc: t('ADMIN_CONFIG_ITEM_SHOW_IMAGE'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}false`, value: '' },
-            { key: 'IMAGE_CDN', desc: t('ADMIN_CONFIG_ITEM_IMAGE_CDN'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}qcloud`, value: '' },
-            { key: 'IMAGE_CDN_URL', desc: t('ADMIN_CONFIG_ITEM_IMAGE_CDN_URL'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}https://piclist.example.com`, value: '' },
-            { key: 'IMAGE_CDN_TOKEN', desc: t('ADMIN_CONFIG_ITEM_IMAGE_CDN_TOKEN'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}example`, value: '' },
+            {
+              key: 'IMAGE_CDN',
+              desc: t('ADMIN_CONFIG_ITEM_IMAGE_CDN'),
+              options: [
+                { value: '', label: t('ADMIN_CONFIG_IMAGE_CDN_NONE') },
+                { value: 'qcloud', label: 'qcloud' },
+                { value: '7bu', label: '7bu (https://7bu.top)' },
+                { value: 'see', label: 'see (https://s.ee)' },
+                { value: 'lskypro', label: 'lskypro' },
+                { value: 'piclist', label: 'piclist' },
+                { value: 'easyimage', label: 'easyimage' },
+                { value: 'chevereto', label: 'chevereto' },
+                { value: 's3', label: 'S3 / R2 / MinIO' }
+              ],
+              value: ''
+            },
+            { key: 'IMAGE_CDN_URL', desc: t('ADMIN_CONFIG_ITEM_IMAGE_CDN_URL'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}https://piclist.example.com`, value: '', showIf: (s) => ['lskypro', 'piclist', 'easyimage'].includes(s('IMAGE_CDN')) },
+            { key: 'IMAGE_CDN_TOKEN', desc: t('ADMIN_CONFIG_ITEM_IMAGE_CDN_TOKEN'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}example`, value: '', showIf: (s) => s('IMAGE_CDN') && s('IMAGE_CDN') !== 's3' },
+            { key: 'S3_REGION', desc: t('ADMIN_CONFIG_ITEM_S3_REGION'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}us-east-1`, value: '', showIf: (s) => s('IMAGE_CDN') === 's3' },
+            { key: 'S3_BUCKET', desc: t('ADMIN_CONFIG_ITEM_S3_BUCKET'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}my-bucket`, value: '', showIf: (s) => s('IMAGE_CDN') === 's3' },
+            { key: 'S3_ACCESS_KEY_ID', desc: t('ADMIN_CONFIG_ITEM_S3_ACCESS_KEY_ID'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}AKIAIOSFODNN7EXAMPLE`, value: '', showIf: (s) => s('IMAGE_CDN') === 's3' },
+            { key: 'S3_SECRET_ACCESS_KEY', desc: t('ADMIN_CONFIG_ITEM_S3_SECRET_ACCESS_KEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`, value: '', secret: true, showIf: (s) => s('IMAGE_CDN') === 's3' },
+            { key: 'S3_ENDPOINT', desc: t('ADMIN_CONFIG_ITEM_S3_ENDPOINT'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}https://xxx.r2.cloudflarestorage.com`, value: '', showIf: (s) => s('IMAGE_CDN') === 's3' },
+            { key: 'S3_FORCE_PATH_STYLE', desc: t('ADMIN_CONFIG_ITEM_S3_FORCE_PATH_STYLE'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}true`, value: '', showIf: (s) => s('IMAGE_CDN') === 's3' },
+            { key: 'S3_CDN_URL', desc: t('ADMIN_CONFIG_ITEM_S3_CDN_URL'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}https://cdn.example.com`, value: '', showIf: (s) => s('IMAGE_CDN') === 's3' },
+            { key: 'S3_PATH_PREFIX', desc: t('ADMIN_CONFIG_ITEM_S3_PATH_PREFIX'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}images/twikoo`, value: '', showIf: (s) => s('IMAGE_CDN') === 's3' },
+            { key: 'NSFW_API_URL', desc: t('ADMIN_CONFIG_ITEM_NSFW_API_URL'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}https://nsfw.example.com`, value: '' },
+            { key: 'NSFW_THRESHOLD', desc: t('ADMIN_CONFIG_ITEM_NSFW_THRESHOLD'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}0.5`, value: '' },
             { key: 'SHOW_EMOTION', desc: t('ADMIN_CONFIG_ITEM_SHOW_EMOTION'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}false`, value: '' },
             { key: 'EMOTION_CDN', desc: t('ADMIN_CONFIG_ITEM_EMOTION_CDN'), ph: '', value: '' },
             { key: 'HIGHLIGHT', desc: t('ADMIN_CONFIG_ITEM_HIGHLIGHT'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}false`, value: '' },
@@ -100,9 +133,29 @@ export default {
             { key: 'LIMIT_LENGTH', desc: t('ADMIN_CONFIG_ITEM_LIMIT_LENGTH'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}100`, value: '' },
             { key: 'FORBIDDEN_WORDS', desc: t('ADMIN_CONFIG_ITEM_FORBIDDEN_WORDS'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}快递,空包`, value: '' },
             { key: 'BLOCKED_WORDS', desc: t('ADMIN_CONFIG_ITEM_BLOCKED_WORDS'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}快递,空包`, value: '' },
-            { key: 'NOTIFY_SPAM', desc: t('ADMIN_CONFIG_ITEM_NOTIFY_SPAM'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}false`, value: '' },
-            { key: 'TURNSTILE_SITE_KEY', desc: t('ADMIN_CONFIG_ITEM_TURNSTILE_SITE_KEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}0x4AAAAAAAPLTtpBr_T12345`, value: '' },
-            { key: 'TURNSTILE_SECRET_KEY', desc: t('ADMIN_CONFIG_ITEM_TURNSTILE_SECRET_KEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}0x4AAAAAAAPLTmBm6gHmOnOqC1iwmU12345`, value: '', secret: true }
+            { key: 'NOTIFY_SPAM', desc: t('ADMIN_CONFIG_ITEM_NOTIFY_SPAM'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}false`, value: '' }
+          ]
+        },
+        {
+          name: t('ADMIN_CONFIG_CATEGORY_CAPTCHA'),
+          items: [
+            {
+              key: 'CAPTCHA_PROVIDER',
+              desc: t('ADMIN_CONFIG_ITEM_CAPTCHA_PROVIDER'),
+              options: [
+                { value: '', label: t('ADMIN_CONFIG_CAPTCHA_NONE') },
+                { value: 'Turnstile', label: t('ADMIN_CONFIG_CAPTCHA_TURNSTILE') },
+                { value: 'Geetest', label: t('ADMIN_CONFIG_CAPTCHA_GEETEST') },
+                { value: 'Cap', label: t('ADMIN_CONFIG_CAPTCHA_CAP') }
+              ],
+              value: ''
+            },
+            { key: 'TURNSTILE_SITE_KEY', desc: t('ADMIN_CONFIG_ITEM_TURNSTILE_SITE_KEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}0x4AAAAAAAPLTtpBr_T12345`, value: '', showIf: (s) => s('CAPTCHA_PROVIDER') === 'Turnstile' },
+            { key: 'TURNSTILE_SECRET_KEY', desc: t('ADMIN_CONFIG_ITEM_TURNSTILE_SECRET_KEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}0x4AAAAAAAPLTmBm6gHmOnOqC1iwmU12345`, value: '', secret: true, showIf: (s) => s('CAPTCHA_PROVIDER') === 'Turnstile' },
+            { key: 'GEETEST_CAPTCHA_ID', desc: t('ADMIN_CONFIG_ITEM_GEETEST_CAPTCHA_ID'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}your_captcha_id`, value: '', showIf: (s) => s('CAPTCHA_PROVIDER') === 'Geetest' },
+            { key: 'GEETEST_CAPTCHA_KEY', desc: t('ADMIN_CONFIG_ITEM_GEETEST_CAPTCHA_KEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}your_captcha_key`, value: '', secret: true, showIf: (s) => s('CAPTCHA_PROVIDER') === 'Geetest' },
+            { key: 'CAP_API_ENDPOINT', desc: t('ADMIN_CONFIG_ITEM_CAP_API_ENDPOINT'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}https://cap.example.com/d9256640cb53/`, value: '', showIf: (s) => s('CAPTCHA_PROVIDER') === 'Cap' },
+            { key: 'CAP_SECRET_KEY', desc: t('ADMIN_CONFIG_ITEM_CAP_SECRET_KEY'), ph: `${t('ADMIN_CONFIG_EXAMPLE')}your_cap_secret_key`, value: '', secret: true, showIf: (s) => s('CAPTCHA_PROVIDER') === 'Cap' }
           ]
         },
         {
@@ -146,6 +199,20 @@ export default {
       const res = await call(this.$tcb, 'GET_CONFIG_FOR_ADMIN')
       if (res.result && !res.result.code) {
         this.serverConfig = res.result.config
+        if (typeof this.serverConfig.CAPTCHA_PROVIDER === 'undefined') {
+          if (this.serverConfig.TURNSTILE_SITE_KEY) {
+            this.serverConfig.CAPTCHA_PROVIDER = 'Turnstile'
+          } else if (this.serverConfig.GEETEST_CAPTCHA_ID) {
+            this.serverConfig.CAPTCHA_PROVIDER = 'Geetest'
+          }
+        }
+        if (typeof this.serverConfig.IMAGE_CDN === 'undefined') {
+          if (this.serverConfig.SHOW_IMAGE === 'false') {
+            this.serverConfig.IMAGE_CDN = ''
+          } else {
+            this.serverConfig.IMAGE_CDN = ''
+          }
+        }
         this.resetConfig()
       }
       this.loading = false
@@ -153,11 +220,24 @@ export default {
     resetConfig () {
       for (const settingGroup of this.settings) {
         for (const setting of settingGroup.items) {
-          if (this.serverConfig[setting.key]) {
+          if (this.serverConfig[setting.key] !== undefined) {
             setting.value = this.serverConfig[setting.key]
+          } else {
+            setting.value = ''
           }
         }
       }
+    },
+    showSetting (setting) {
+      if (typeof setting.showIf !== 'function') return true
+      const getVal = key => {
+        for (const g of this.settings) {
+          const found = g.items.find(i => i.key === key)
+          if (found) return found.value
+        }
+        return null
+      }
+      return setting.showIf(getVal)
     },
     async saveConfig () {
       this.loading = true
@@ -172,9 +252,14 @@ export default {
           }
         }
       }
+      if (config.IMAGE_CDN !== undefined) {
+        config.SHOW_IMAGE = config.IMAGE_CDN ? 'true' : 'false'
+      }
       logger.log('保存配置', config)
       await call(this.$tcb, 'SET_CONFIG', { config })
       await this.readConfig()
+      // Notify other components (e.g. TkComments) to refresh config
+      app.$emit('configUpdated')
       this.message = '保存成功'
       this.loading = false
     },
@@ -196,6 +281,7 @@ export default {
 .tk-admin-config-groups {
   overflow-y: auto;
   padding-right: 0.5em;
+  position: relative;
 }
 .tk-admin-config-groups .tk-admin-config-group,
 .tk-admin-config-groups .tk-admin-config-group-title {
@@ -211,6 +297,7 @@ export default {
   align-items: center;
   grid-template-columns: 30% 70%;
   margin-top: 1em;
+  position: relative;
 }
 .tk-admin-config-title {
   text-align: right;
@@ -218,6 +305,38 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.tk-admin-config-input {
+  position: relative;
+}
+.tk-admin-config-select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 8.825L1.175 4 2.238 2.938 6 6.7l3.763-3.762L10.825 4z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  border-radius: 4px;
+  border: 1px solid rgba(144, 147, 153, 0.31);
+  box-sizing: border-box;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-block;
+  font-size: inherit;
+  height: 32px;
+  line-height: 32px;
+  outline: none;
+  padding: 0 30px 0 10px;
+  transition: border-color .2s cubic-bezier(.645,.045,.355,1);
+  width: 100%;
+}
+.tk-admin-config-select:focus {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+.tk-admin-config-select option {
+  color: #fff;
+  background: #333;
 }
 .tk-admin-config-desc {
   margin-top: 0.5em;

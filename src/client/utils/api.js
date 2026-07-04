@@ -34,7 +34,7 @@ const call = async (tcb, event, data = {}) => {
       if (oldFuncName) {
         return await _tcb.app.callFunction({
           name: oldFuncName,
-          data: data
+          data
         })
       } else {
         throw new Error('请升级 Twikoo 云函数版本再试，如果仍无法解决，请删除并重新创建 Twikoo 云函数 - https://twikoo.js.org')
@@ -60,7 +60,7 @@ const call = async (tcb, event, data = {}) => {
         }
         xhr.open('POST', _envId)
         xhr.setRequestHeader('Content-Type', 'application/json')
-        xhr.send(JSON.stringify({ event, accessToken, ...data }))
+        xhr.send(JSON.stringify({ event, accessToken, ...data, envId: _envId }))
       } catch (e) {
         reject(e)
       }

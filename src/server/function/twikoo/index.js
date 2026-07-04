@@ -26,12 +26,17 @@ const {
   isQQ,
   addQQMailSuffix,
   getQQAvatar,
+  getQQNick,
   getPasswordStatus,
   preCheckSpam,
   checkTurnstileCaptcha,
+  checkGeeTestCaptcha,
+  checkCapCaptcha,
   getConfig,
   getConfigForAdmin,
-  validate
+  validate,
+  checkCommentOwnership,
+  isValidEmail
 } = require('./utils')
 const {
   jsonParse,
@@ -137,8 +142,14 @@ exports.main = async (event, context) => {
       case 'UPLOAD_IMAGE': // >= 1.5.0
         res = await uploadImage(event, config)
         break
+      case 'GET_QQ_NICK': // >= 1.7.0
+        res = await qqNickGet(event)
+        break
       case 'COMMENT_EXPORT_FOR_ADMIN': // >= 1.6.13
         res = await commentExportForAdmin(event)
+        break
+      case 'COMMENT_DELETE_FOR_USER':
+        res = await commentDeleteForUser(event)
         break
       default:
         if (event.event) {
@@ -233,6 +244,7 @@ async function commentGet (event) {
     const uid = await auth.getEndUserInfo().userInfo.uid
     const isAdminUser = await isAdmin()
     const limit = parseInt(config.COMMENT_PAGE_SIZE) || 8
+    const sort = event.sort || 'newest'
     let more = false
     let condition
     let query
@@ -254,10 +266,21 @@ async function commentGet (event) {
     // 不包含置顶
     condition.top = _.neq(true)
     query = getCommentQuery({ condition, uid, isAdminUser })
+
+    let orderField = 'created'
+    let orderDirection = 'desc'
+    if (sort === 'oldest') {
+      orderField = 'created'
+      orderDirection = 'asc'
+    } else if (sort === 'popular') {
+      orderField = 'ups'
+      orderDirection = 'desc'
+    }
+
     const main = await db
       .collection('comment')
       .where(query)
-      .orderBy('created', 'desc')
+      .orderBy(orderField, orderDirection)
       // 流式分页，通过多读 1 条的方式，确认是否还有更多评论
       .limit(limit + 1)
       .get()
@@ -410,6 +433,25 @@ async function commentDeleteForAdmin (event) {
   return res
 }
 
+// 用户删除自己的评论
+async function commentDeleteForUser (event) {
+  const res = {}
+  try {
+    const uid = await getUid()
+    await checkCommentOwnership(event.id, uid, async (id) => {
+      const doc = await db.collection('comment').doc(id).get()
+      return doc.data && doc.data.length > 0 ? doc.data[0] : null
+    })
+    const data = await db.collection('comment').doc(event.id).delete()
+    res.code = RES_CODE.SUCCESS
+    res.deleted = data.deleted
+  } catch (e) {
+    res.code = RES_CODE.FAIL
+    res.message = e.message
+  }
+  return res
+}
+
 // 管理员导入评论
 async function commentImportForAdmin (event) {
   const res = {}
@@ -514,7 +556,7 @@ async function bulkSaveComments (comments) {
   return batchRes.ids
 }
 
-// 点赞 / 取消点赞
+// 点赞 / 反对 / 取消点赞
 async function commentLike (event) {
   const res = {}
   let uid
@@ -525,25 +567,41 @@ async function commentLike (event) {
     res.message = e.message
     return res
   }
-  res.updated = await like(event.id, uid)
+  const type = event.type || 'up'
+  res.updated = await like(event.id, uid, type)
   return res
 }
 
-// 点赞 / 取消点赞
-async function like (id, uid) {
+// 点赞 / 反对 / 取消
+async function like (id, uid, type) {
   const record = db
     .collection('comment')
     .where({ _id: id })
   const comment = await record.get()
-  let likes = comment.data[0] && comment.data[0].like ? comment.data[0].like : []
-  if (likes.findIndex((item) => item === uid) === -1) {
-    // 赞
-    likes.push(uid)
-  } else {
-    // 取消赞
-    likes = likes.filter((item) => item !== uid)
+  const commentData = comment.data[0] || {}
+  const ups = commentData.ups || []
+  const downs = commentData.downs || []
+
+  let newUps = [...ups]
+  let newDowns = [...downs]
+
+  if (type === 'up') {
+    if (ups.includes(uid)) {
+      newUps = ups.filter((item) => item !== uid)
+    } else {
+      newUps.push(uid)
+      newDowns = downs.filter((item) => item !== uid)
+    }
+  } else if (type === 'down') {
+    if (downs.includes(uid)) {
+      newDowns = downs.filter((item) => item !== uid)
+    } else {
+      newDowns.push(uid)
+      newUps = ups.filter((item) => item !== uid)
+    }
   }
-  const result = await record.update({ like: likes })
+
+  const result = await record.update({ ups: newUps, downs: newDowns })
   return result.updated
 }
 
@@ -622,6 +680,7 @@ async function parse (comment) {
   const isAdminUser = await isAdmin()
   const isBloggerMail = equalsMail(comment.mail, config.BLOGGER_EMAIL)
   if (isBloggerMail && !isAdminUser) throw new Error('请先登录管理面板，再使用博主身份发送评论')
+  if (comment.mail && !isValidEmail(comment.mail)) throw new Error('邮箱格式不合法')
   const hashMethod = config.GRAVATAR_CDN === 'cravatar.cn' ? md5 : sha256
   const commentDo = {
     uid: await getUid(),
@@ -685,12 +744,35 @@ async function limitFilter () {
 }
 
 async function checkCaptcha (comment) {
-  if (config.TURNSTILE_SITE_KEY && config.TURNSTILE_SECRET_KEY) {
+  const provider = config.CAPTCHA_PROVIDER
+  if (provider === 'Turnstile' && config.TURNSTILE_SITE_KEY && config.TURNSTILE_SECRET_KEY) {
     await checkTurnstileCaptcha({
       ip: auth.getClientIP(),
       turnstileToken: comment.turnstileToken,
       turnstileTokenSecretKey: config.TURNSTILE_SECRET_KEY
     })
+  } else if (provider === 'Geetest' && config.GEETEST_CAPTCHA_ID && config.GEETEST_CAPTCHA_KEY) {
+    await checkGeeTestCaptcha({
+      geeTestCaptchaId: config.GEETEST_CAPTCHA_ID,
+      geeTestCaptchaKey: config.GEETEST_CAPTCHA_KEY,
+      geeTestLotNumber: comment.geeTestLotNumber,
+      geeTestCaptchaOutput: comment.geeTestCaptchaOutput,
+      geeTestPassToken: comment.geeTestPassToken,
+      geeTestGenTime: comment.geeTestGenTime
+    })
+  } else if (provider === 'Cap' && config.CAP_API_ENDPOINT && config.CAP_SECRET_KEY) {
+    if (!comment.capToken) {
+      throw new Error('验证码 token 缺失，请刷新页面重试')
+    }
+    await checkCapCaptcha({
+      capToken: comment.capToken,
+      capSecretKey: config.CAP_SECRET_KEY,
+      capApiEndpoint: config.CAP_API_ENDPOINT
+    })
+  } else if (provider === 'Cap') {
+    throw new Error('Cap 验证码配置不完整，请联系管理员')
+  } else if (provider) {
+    throw new Error(`不支持的验证码类型: ${provider}`)
   }
 }
 
@@ -836,6 +918,21 @@ async function getRecentComments (event) {
   } catch (e) {
     res.message = e.message
     return res
+  }
+  return res
+}
+
+// 获取 QQ 昵称
+async function qqNickGet (event) {
+  const res = {}
+  try {
+    validate(event, ['qq'])
+    const nick = await getQQNick(event.qq, config.QQ_API_KEY)
+    res.code = RES_CODE.SUCCESS
+    res.nick = nick
+  } catch (e) {
+    res.code = RES_CODE.FAIL
+    res.message = e.message
   }
   return res
 }

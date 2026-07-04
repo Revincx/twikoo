@@ -9,7 +9,7 @@
       <div class="tk-row">
         <div class="tk-meta">
           <strong class="tk-nick" v-if="!convertedLink">{{ comment.nick }}</strong>
-          <a class="tk-nick tk-nick-link" v-if="convertedLink" :href="convertedLink" target="_blank" rel="noopener noreferrer">
+          <a class="tk-nick tk-nick-link" v-if="convertedLink" :href="convertedLink" target="_blank" rel="noopener noreferrer nofollow ugc">
             <strong>{{ comment.nick }}</strong>
           </a>
           <span class="tk-tag tk-tag-green" v-if="comment.master">{{ config.MASTER_TAG || t('COMMENT_MASTER_TAG') }}</span>
@@ -19,20 +19,26 @@
             <time :datetime="jsonTimestamp" :title="localeTime">{{ displayCreated }}</time>
           </small>
           <small class="tk-actions" v-if="isLogin">
-            <a href="#" v-if="comment.isSpam" @click="handleSpam(false, $event)">{{ t('ADMIN_COMMENT_SHOW') }}</a>
-            <a href="#" v-if="!comment.isSpam" @click="handleSpam(true, $event)">{{ t('ADMIN_COMMENT_HIDE') }}</a>
-            <a href="#" v-if="!comment.rid && comment.top" @click="handleTop(false, $event)">{{ t('ADMIN_COMMENT_UNTOP') }}</a>
-            <a href="#" v-if="!comment.rid && !comment.top" @click="handleTop(true, $event)">{{ t('ADMIN_COMMENT_TOP') }}</a>
+            <button v-if="comment.isSpam" @click="handleSpam(false)">{{ t('ADMIN_COMMENT_SHOW') }}</button>
+            <button v-if="!comment.isSpam" @click="handleSpam(true)">{{ t('ADMIN_COMMENT_HIDE') }}</button>
+            <button v-if="!comment.rid && comment.top" @click="handleTop(false)">{{ t('ADMIN_COMMENT_UNTOP') }}</button>
+            <button v-if="!comment.rid && !comment.top" @click="handleTop(true)">{{ t('ADMIN_COMMENT_TOP') }}</button>
           </small>
         </div>
         <tk-action :liked="liked"
-            :like-count="like"
+            :disliked="disliked"
+            :like-count="ups"
+            :dislike-count="downs"
             :replies-count="comment.replies.length"
+            :show-dislike="config.SHOW_DISLIKE !== 'false'"
+            :show-delete="comment.isOwner"
             @like="onLike"
-            @reply="onReply" />
+            @dislike="onDislike"
+            @reply="onReply"
+            @delete="onDelete" />
       </div>
       <div class="tk-content" :class="{ 'tk-content-expand': isContentExpanded || !showContentExpand }" ref="tk-content">
-        <span v-if="comment.pid">{{ t('COMMENT_REPLIED') }} <a class="tk-ruser" :href="`#${comment.pid}`">@{{ comment.ruser }}</a> :</span>
+        <span v-if="comment.pid">{{ t('COMMENT_REPLIED') }} <a class="tk-ruser" href="#" @click.prevent="scrollToPid(comment.pid)">@{{ comment.ruser }}</a> :</span>
         <span v-html="comment.comment" ref="comment" @click="popupLightbox"></span>
       </div>
       <div class="tk-expand-wrap" v-if="showContentExpand">
@@ -72,7 +78,8 @@
             :config="config"
             @expand="onExpand"
             @load="onLoad"
-            @reply="onReplyReply" />
+            @reply="onReplyReply"
+            @refreshed="onRefreshed" />
       </div>
       <div class="tk-expand-wrap" v-if="showExpand && !replying">
         <div class="tk-expand" @click="onExpand">{{ t('COMMENT_EXPAND') }}</div>
@@ -134,6 +141,9 @@ export default {
       pid: '',
       like: 0,
       liked: false,
+      disliked: false,
+      ups: 0,
+      downs: 0,
       likeLoading: false,
       isExpanded: false,
       hasExpand: false,
@@ -214,21 +224,61 @@ export default {
         this.$emit('expand')
       }
     },
+    scrollToPid (pid) {
+      const el = document.getElementById(pid)
+      if (el) {
+        el.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        })
+      }
+    },
     async onLike () {
-      if (this.likeLoading) return // 防止连续点击
+      if (this.likeLoading) return
       this.likeLoading = true
-      await call(this.$tcb, 'COMMENT_LIKE', { id: this.comment.id })
+      await call(this.$tcb, 'COMMENT_LIKE', { id: this.comment.id, type: 'up' })
       if (this.liked) {
-        this.like--
+        this.ups--
       } else {
-        this.like++
+        this.ups++
+        if (this.disliked) {
+          this.downs--
+        }
       }
       this.liked = !this.liked
+      this.disliked = false
+      this.likeLoading = false
+    },
+    async onDislike () {
+      if (this.likeLoading) return
+      this.likeLoading = true
+      await call(this.$tcb, 'COMMENT_LIKE', { id: this.comment.id, type: 'down' })
+      if (this.disliked) {
+        this.downs--
+      } else {
+        this.downs++
+        if (this.liked) {
+          this.ups--
+        }
+      }
+      this.disliked = !this.disliked
+      this.liked = false
       this.likeLoading = false
     },
     onReply (id) {
       this.pid = id
       this.$emit('reply', this.comment.id)
+    },
+    async onDelete () {
+      if (!confirm(t('COMMENT_DELETE_CONFIRM'))) return
+      const { result } = await call(this.$tcb, 'COMMENT_DELETE_FOR_USER', {
+        id: this.comment.id
+      })
+      if (result.code) {
+        alert(result.message)
+      } else {
+        this.$emit('load')
+      }
     },
     onReplyReply (id) {
       // 楼中楼回复
@@ -246,16 +296,21 @@ export default {
       this.$emit('reply', '')
     },
     onLoad () {
-      if (this.comment.replies.length > 0) {
-        this.$refs['tk-replies'].lastElementChild.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        })
-      }
       this.pid = ''
       this.$emit('reply', '')
       this.$emit('load')
       this.onExpand()
+    },
+    onRefreshed () {
+      this.$emit('refreshed')
+      this.$nextTick(() => {
+        if (this.comment.replies && this.comment.replies.length > 0 && this.$refs['tk-replies']) {
+          this.$refs['tk-replies'].lastElementChild.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          })
+        }
+      })
     },
     onExpand () {
       this.isExpanded = true
@@ -278,12 +333,10 @@ export default {
         this.isLogin = this.$twikoo.serverConfig && this.$twikoo.serverConfig.IS_ADMIN
       }
     },
-    handleSpam (isSpam, $event) {
-      $event.preventDefault()
+    handleSpam (isSpam) {
       this.setComment({ isSpam })
     },
-    handleTop (top, $event) {
-      $event.preventDefault()
+    handleTop (top) {
       this.setComment({ top })
     },
     popupLightbox (event) {
@@ -309,7 +362,7 @@ export default {
         set
       })
       this.loading = false
-      this.$emit('load')
+      Object.assign(this.comment, set)
     }
   },
   mounted () {
@@ -327,7 +380,20 @@ export default {
     'comment.like': {
       handler: function (like) {
         this.like = this.comment.like
+      },
+      immediate: true
+    },
+    'comment.ups': {
+      handler: function (ups) {
+        this.ups = this.comment.ups
         this.liked = this.comment.liked
+      },
+      immediate: true
+    },
+    'comment.downs': {
+      handler: function (downs) {
+        this.downs = this.comment.downs
+        this.disliked = this.comment.disliked
       },
       immediate: true
     },
@@ -369,6 +435,17 @@ export default {
 .tk-actions {
   display: none;
   margin-left: 1em;
+}
+.tk-actions button {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-decoration: none;
+  display: inline;
+  color: #409eff;
+  cursor: pointer;
 }
 .tk-comment:hover .tk-actions {
   display: inline;

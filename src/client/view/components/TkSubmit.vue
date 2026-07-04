@@ -19,7 +19,7 @@
     <div class="tk-row actions">
       <div class="tk-row-actions-start">
         <div class="tk-submit-action-icon OwO" v-show="config.SHOW_EMOTION === 'true'" v-html="iconEmotion" v-clickoutside="closeOwo" ref="owo"></div>
-        <div class="tk-submit-action-icon" v-show="config.SHOW_IMAGE === 'true'" v-html="iconImage" @click="openSelectImage"></div>
+        <div class="tk-submit-action-icon" v-show="showImage" v-html="iconImage" @click="openSelectImage"></div>
         <input class="tk-input-image" type="file" accept="image/*" value="" ref="inputFile" @change="onSelectImage" />
         <div class="tk-error-message">{{ errorMessage }}</div>
       </div>
@@ -41,9 +41,11 @@
           size="small"
           :disabled="!canSend"
           @click="send">{{ isSending ? t('SUBMIT_SENDING') : t('SUBMIT_SEND') }}</el-button>
-      <div class="tk-turnstile-container" ref="turnstile-container">
+      <div class="tk-turnstile-container" ref="turnstile-container" v-show="captchaProvider === 'Turnstile'">
         <div class="tk-turnstile" ref="turnstile"></div>
       </div>
+      <div class="tk-geetest-container" ref="geetest-container" v-show="captchaProvider === 'Geetest'"></div>
+      <div class="tk-cap-container" ref="cap-container" v-show="captchaProvider === 'Cap'"></div>
     </div>
     <div class="tk-preview-container" v-if="isPreviewing" v-html="commentHtml" ref="comment-preview"></div>
   </div>
@@ -51,13 +53,13 @@
 
 <script>
 import iconMarkdown from '@fortawesome/fontawesome-free/svgs/brands/markdown.svg'
-import iconEmotion from '@fortawesome/fontawesome-free/svgs/regular/laugh.svg'
 import iconImage from '@fortawesome/fontawesome-free/svgs/regular/image.svg'
+import iconEmotion from '@fortawesome/fontawesome-free/svgs/regular/laugh.svg'
 import Clickoutside from 'element-ui/src/utils/clickoutside'
+import OwO from '../../lib/owo'
+import { blobToDataURL, call, getHref, getUrl, getUserAgent, initMarkedOwo, initOwoEmotions, logger, marked, renderCode, renderLinks, renderMath, t } from '../../utils'
 import TkAvatar from './TkAvatar.vue'
 import TkMetaInput from './TkMetaInput.vue'
-import { marked, call, logger, renderLinks, renderMath, renderCode, initOwoEmotions, initMarkedOwo, t, getUrl, getHref, blobToDataURL, getUserAgent } from '../../utils'
-import OwO from '../../lib/owo'
 
 const imageTypes = [
   'apng',
@@ -98,12 +100,25 @@ export default {
       mail: '',
       link: '',
       turnstileLoad: null,
+      geeTestLoad: null,
+      geeTestCaptchaObj: null,
+      capLoad: null,
       iconMarkdown,
       iconEmotion,
       iconImage
     }
   },
   computed: {
+    captchaProvider () {
+      if (typeof this.config.CAPTCHA_PROVIDER !== 'undefined') return this.config.CAPTCHA_PROVIDER
+      if (this.config.TURNSTILE_SITE_KEY) return 'Turnstile'
+      if (this.config.GEETEST_CAPTCHA_ID) return 'Geetest'
+      if (this.config.CAP_API_ENDPOINT) return 'Cap'
+      return ''
+    },
+    showImage () {
+      return !!this.config.IMAGE_CDN
+    },
     canSend () {
       return !this.isSending &&
         !!this.isMetaValid &&
@@ -149,7 +164,7 @@ export default {
       }
     },
     initTurnstile () {
-      if (!this.config.TURNSTILE_SITE_KEY) return
+      if (this.captchaProvider !== 'Turnstile' || !this.config.TURNSTILE_SITE_KEY) return
       if (window.turnstile) {
         this.turnstileLoad = Promise.resolve()
         return
@@ -171,9 +186,97 @@ export default {
               resolve(token)
               setTimeout(() => {
                 window.turnstile.remove(widgetId)
-              }, 5000)
+              }, 1000)
             },
-            'error-callback': reject
+            'error-callback': reject,
+            'expired-callback': () => {
+              reject(new Error('验证码已过期，请重试'))
+            },
+            'timeout-callback': () => {
+              reject(new Error('验证码超时，请重试'))
+            }
+          })
+        })
+      })
+    },
+    initGeeTest () {
+      if (this.captchaProvider !== 'Geetest' || !this.config.GEETEST_CAPTCHA_ID) return
+      if (window.initGeetest4) {
+        this.geeTestLoad = Promise.resolve()
+        return
+      }
+      this.geeTestLoad = new Promise((resolve, reject) => {
+        const scriptEl = document.createElement('script')
+        scriptEl.src = 'https://static.geetest.com/v4/gt4.js'
+        scriptEl.onload = resolve
+        scriptEl.onerror = reject
+        this.$refs['geetest-container'].appendChild(scriptEl)
+      })
+    },
+    getGeeTestToken () {
+      return new Promise((resolve, reject) => {
+        this.geeTestLoad.then(() => {
+          window.initGeetest4({
+            captchaId: this.config.GEETEST_CAPTCHA_ID,
+            product: 'bind',
+            language: 'zho'
+          }, (captcha) => {
+            this.geeTestCaptchaObj = captcha
+            captcha.onReady(() => {
+              captcha.showCaptcha()
+            }).onSuccess(() => {
+              const result = captcha.getValidate()
+              resolve({
+                geeTestLotNumber: result.lot_number,
+                geeTestCaptchaOutput: result.captcha_output,
+                geeTestPassToken: result.pass_token,
+                geeTestGenTime: result.gen_time
+              })
+            }).onError((e) => {
+              reject(e)
+            }).onClose(() => {
+              reject(new Error('验证已取消'))
+            })
+          })
+        })
+      })
+    },
+    initCap () {
+      if (this.captchaProvider !== 'Cap' || !this.config.CAP_API_ENDPOINT) return
+      if (window.Cap) {
+        this.capLoad = Promise.resolve()
+        return
+      }
+      this.capLoad = new Promise((resolve, reject) => {
+        const scriptEl = document.createElement('script')
+        scriptEl.src = 'https://cdn.jsdmirror.com/npm/@cap.js/widget'
+        scriptEl.onload = resolve
+        scriptEl.onerror = reject
+        this.$refs['cap-container'].appendChild(scriptEl)
+      })
+    },
+    getCapToken () {
+      return new Promise((resolve, reject) => {
+        this.capLoad.then(() => {
+          const capWidget = document.createElement('cap-widget')
+          capWidget.setAttribute('id', 'cap-widget')
+          capWidget.setAttribute('data-cap-api-endpoint', this.config.CAP_API_ENDPOINT)
+          this.$refs['cap-container'].appendChild(capWidget)
+          const cleanup = () => {
+            if (capWidget && capWidget.parentNode) {
+              capWidget.parentNode.removeChild(capWidget)
+            }
+          }
+          capWidget.solve().then((result) => {
+            cleanup()
+            if (result.success) {
+              resolve(result.token)
+            } else {
+              reject(new Error('Cap验证失败'))
+            }
+          }).catch((e) => {
+            cleanup()
+            reject(e)
           })
         })
       })
@@ -224,8 +327,18 @@ export default {
           pid: this.pid ? this.pid : this.replyId,
           rid: this.replyId
         }
-        if (this.config.TURNSTILE_SITE_KEY) {
+        if (this.captchaProvider === 'Turnstile' && this.config.TURNSTILE_SITE_KEY) {
           comment.turnstileToken = await this.getTurnstileToken()
+        }
+        if (this.captchaProvider === 'Geetest' && this.config.GEETEST_CAPTCHA_ID) {
+          const geeTestResult = await this.getGeeTestToken()
+          comment.geeTestLotNumber = geeTestResult.geeTestLotNumber
+          comment.geeTestCaptchaOutput = geeTestResult.geeTestCaptchaOutput
+          comment.geeTestPassToken = geeTestResult.geeTestPassToken
+          comment.geeTestGenTime = geeTestResult.geeTestGenTime
+        }
+        if (this.captchaProvider === 'Cap' && this.config.CAP_API_ENDPOINT) {
+          comment.capToken = await this.getCapToken()
         }
         const sendResult = await call(this.$tcb, 'COMMENT_SUBMIT', comment)
         if (sendResult && sendResult.result && sendResult.result.id) {
@@ -282,22 +395,26 @@ export default {
       }
       this.parseAndUploadPhoto(photo)
     },
-    parseAndUploadPhoto (photo) {
-      if (!photo || this.config.SHOW_IMAGE !== 'true') return
+    async parseAndUploadPhoto (photo) {
+      if (!photo || !this.showImage) return
       const nameSplit = photo.name.split('.')
       const fileType = nameSplit.length > 1 ? nameSplit.pop() : ''
       if (imageTypes.indexOf(fileType.toLowerCase()) === -1) return
       const userId = this.getUserId()
       const fileIndex = `${Date.now()}-${userId}`
       const fileName = nameSplit.join('.')
-      this.paste(this.getImagePlaceholder(fileIndex, fileType))
+      const isGif = photo.type === 'image/gif'
+      const newFileName = isGif ? fileName : fileName + '.webp'
+      const newFileType = isGif ? fileType : 'webp'
+      this.paste(this.getImagePlaceholder(fileIndex, newFileType))
       const imageCdn = this.config.IMAGE_CDN
+      const compressedPhoto = await this.compressImage(photo)
       if (this.$tcb && (!imageCdn || imageCdn === 'qcloud')) {
-        this.uploadPhotoToQcloud(fileIndex, fileName, fileType, photo)
+        this.uploadPhotoToQcloud(fileIndex, newFileName, newFileType, compressedPhoto)
       } else if (imageCdn) {
-        this.uploadPhotoToThirdParty(fileIndex, fileName, fileType, photo)
+        this.uploadPhotoToThirdParty(fileIndex, newFileName, newFileType, compressedPhoto)
       } else {
-        this.uploadFailed(fileIndex, fileType, t('IMAGE_UPLOAD_FAILED_NO_CONF'))
+        this.uploadFailed(fileIndex, newFileType, t('IMAGE_UPLOAD_FAILED_NO_CONF'))
       }
     },
     getUserId () {
@@ -306,6 +423,43 @@ export default {
       } else {
         return localStorage.getItem('twikoo-access-token')
       }
+    },
+    async compressImage (photo) {
+      if (photo.type === 'image/gif') {
+        return photo
+      }
+      return new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const img = new Image()
+          img.onload = () => {
+            const canvas = document.createElement('canvas')
+            let width = img.width
+            let height = img.height
+            const maxSize = 1920
+            if (width > maxSize || height > maxSize) {
+              if (width > height) {
+                height = (height * maxSize) / width
+                width = maxSize
+              } else {
+                width = (width * maxSize) / height
+                height = maxSize
+              }
+            }
+            canvas.width = width
+            canvas.height = height
+            const ctx = canvas.getContext('2d')
+            ctx.drawImage(img, 0, 0, width, height)
+            const webpType = 'image/webp'
+            const fileName = photo.name.replace(/\.[^.]+$/, '.webp')
+            canvas.toBlob((blob) => {
+              resolve(new File([blob], fileName, { type: webpType }))
+            }, webpType, 0.85)
+          }
+          img.src = e.target.result
+        }
+        reader.readAsDataURL(photo)
+      })
     },
     async uploadPhotoToQcloud (fileIndex, fileName, fileType, photo) {
       try {
@@ -325,17 +479,14 @@ export default {
     },
     async uploadPhotoToThirdParty (fileIndex, fileName, fileType, photo) {
       try {
-        let smmsImageDuplicateCheck
         const { result: uploadResult } = await call(this.$tcb, 'UPLOAD_IMAGE', {
-          fileName: `${fileIndex}.${fileType}`,
+          fileName,
           photo: await blobToDataURL(photo)
         })
         if (uploadResult.data) {
           this.uploadCompleted(fileIndex, fileName, fileType, uploadResult.data.url)
-        } else if (uploadResult.code === 1040 && uploadResult.err &&
-          (smmsImageDuplicateCheck = uploadResult.err.match(/this image exists at: (http[^ ]+)/))) {
-          console.warn(uploadResult)
-          this.uploadCompleted(fileIndex, fileName, fileType, smmsImageDuplicateCheck[1])
+        } else if (uploadResult.code === 1041) {
+          this.uploadFailed(fileIndex, fileType, t('IMAGE_UPLOAD_NSFW'))
         } else {
           console.error(uploadResult)
           this.uploadFailed(fileIndex, fileType, uploadResult.err)
@@ -383,6 +534,8 @@ export default {
     this.addEventListener()
     this.onBgImgChange()
     this.initTurnstile()
+    this.initGeeTest()
+    this.initCap()
   },
   watch: {
     'config.SHOW_EMOTION': function () {
@@ -393,6 +546,17 @@ export default {
     },
     'config.TURNSTILE_SITE_KEY': function () {
       this.initTurnstile()
+    },
+    'config.GEETEST_CAPTCHA_ID': function () {
+      this.initGeeTest()
+    },
+    'config.CAP_API_ENDPOINT': function () {
+      this.initCap()
+    },
+    captchaProvider: function () {
+      this.initTurnstile()
+      this.initGeeTest()
+      this.initCap()
     }
   }
 }
@@ -468,6 +632,18 @@ export default {
 .tk-turnstile {
   display: flex;
   flex-direction: column;
+}
+.tk-geetest-container {
+  position: absolute;
+  right: 0;
+  bottom: -75px;
+  z-index: 1;
+}
+.tk-cap-container {
+  position: absolute;
+  right: 0;
+  bottom: -75px;
+  z-index: 1;
 }
 .tk-preview-container {
   margin-left: 3rem;

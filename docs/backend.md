@@ -45,7 +45,7 @@ exports.main = require('twikoo-func').main
 8. 创建完成后，点击“twikoo"进入云函数详情页，进入“函数代码”标签，点击“文件 - 新建文件”，输入 `package.json`，回车
 9. 复制以下代码、粘贴到代码框中，点击“保存并安装依赖”
 ``` json
-{ "dependencies": { "twikoo-func": "1.6.44" } }
+{ "dependencies": { "twikoo-func": "1.7.13" } }
 ```
 
 ## 腾讯云命令行部署
@@ -292,6 +292,7 @@ lambda_function_url = "https://axtoiiithbcexamplegq7ozalu0cnkii.lambda-url.us-we
 | `MONGODB_URI` | MongoDB 数据库连接字符串，不传则使用 lokijs | `null` |
 | `MONGO_URL` | MongoDB 数据库连接字符串，不传则使用 lokijs | `null` |
 | `TWIKOO_DATA` | lokijs 数据库存储路径 | `./data` |
+| `TWIKOO_HOST` | 自定义监听的主机名或IP地址（例如 0.0.0.0 或 127.0.0.1）,设置该值则会忽略 TWIKOO_LOCALHOST_ONLY，默认值为 null 但实际行为会回退到 `::` | `null` |
 | `TWIKOO_PORT` | 端口号 | `8080` |
 | `TWIKOO_THROTTLE` | IP 请求限流，当同一 IP 短时间内请求次数超过阈值将对该 IP 返回错误 | `250` |
 | `TWIKOO_LOCALHOST_ONLY` | 为`true`时只监听本地请求，使得 nginx 等服务器反代之后不暴露原始端口 | `null` |
